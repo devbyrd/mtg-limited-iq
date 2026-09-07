@@ -183,20 +183,34 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
             </div>
 
             <div className="flex items-baseline gap-2 pt-0.5">
-              <span className="text-xl font-black font-mono px-2 py-0.5 rounded-lg bg-amber-500 text-slate-950 border border-amber-400 shadow-xs">
-                {lsvRating.grade}
-              </span>
-              <span className="text-xs font-black font-mono text-amber-700 dark:text-amber-300">
-                {lsvRating.score.toFixed(1)} / 5.0
-              </span>
+              {!isBlindGrading ? (
+                <>
+                  <span className="text-xl font-black font-mono px-2 py-0.5 rounded-lg bg-amber-500 text-slate-950 border border-amber-400 shadow-xs">
+                    {lsvRating.grade}
+                  </span>
+                  <span className="text-xs font-black font-mono text-amber-700 dark:text-amber-300">
+                    {lsvRating.score.toFixed(1)} / 5.0
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm font-semibold text-amber-500/80 italic">
+                  ???
+                </span>
+              )}
             </div>
 
             <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80 flex items-center justify-between pt-0.5">
-              <span>{lsvRating.verdict || 'Playable'}</span>
-              {userGrade && (
-                <span className="font-mono font-semibold">
-                  Δ {lsvDelta > 0 ? `+${lsvDelta}` : lsvDelta < 0 ? `${lsvDelta}` : '0'}
-                </span>
+              {!isBlindGrading ? (
+                <>
+                  <span>{lsvRating.verdict || 'Playable'}</span>
+                  {userGrade && (
+                    <span className="font-mono font-semibold">
+                      Δ {lsvDelta > 0 ? `+${lsvDelta}` : lsvDelta < 0 ? `${lsvDelta}` : '0'}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="italic text-amber-600/70 dark:text-amber-400/70">Hidden in grading mode</span>
               )}
             </div>
           </div>

@@ -417,9 +417,12 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
 
                       {/* LSV */}
                       {showLsv && (
-                        <div className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono" title={`LSV Grade: ${lsvRating.grade} (${lsvRating.score.toFixed(1)}/5.0)`}>
+                        <div
+                          className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono"
+                          title={isBlindGrading ? 'LSV grade hidden in grading mode' : `LSV Grade: ${lsvRating.grade} (${lsvRating.score.toFixed(1)}/5.0)`}
+                        >
                           <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
-                          <span className="text-[11px] font-black text-amber-200">{lsvRating.grade}</span>
+                          <span className="text-[11px] font-black text-amber-200">{isBlindGrading ? '???' : lsvRating.grade}</span>
                         </div>
                       )}
 

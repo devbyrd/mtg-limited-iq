@@ -748,10 +748,10 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 {showLsv && (
                                   <div
                                     className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono"
-                                    title={`LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
+                                    title={isBlindGrading ? 'LSV Rating (hidden in grading mode)' : `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
                                   >
                                     <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
-                                    <span className="text-[11px] font-black text-amber-200">{lsvRating.grade}</span>
+                                    <span className="text-[11px] font-black text-amber-200">{isBlindGrading ? '???' : lsvRating.grade}</span>
                                   </div>
                                 )}
 
@@ -1508,10 +1508,16 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                             <td className="py-2 px-3 font-mono">
                               <span
                                 className="font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 w-fit"
-                                title={`LSV: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
+                                title={isBlindGrading ? 'LSV rating hidden in grading mode' : `LSV: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
                               >
-                                <span>{lsvRating.grade}</span>
-                                <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-normal">({lsvRating.score.toFixed(1)})</span>
+                                {isBlindGrading ? (
+                                  <span>???</span>
+                                ) : (
+                                  <>
+                                    <span>{lsvRating.grade}</span>
+                                    <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-normal">({lsvRating.score.toFixed(1)})</span>
+                                  </>
+                                )}
                               </span>
                             </td>
                           );
@@ -1520,7 +1526,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           <td className="py-2 px-3 font-mono font-bold text-slate-700 dark:text-slate-200">
                             {row.actualTier ? (
                               <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800/80">
-                                {row.actualTier}
+                                {isBlindGrading ? '???' : row.actualTier}
                               </span>
                             ) : (
                               <span className="text-amber-600 dark:text-amber-400 font-semibold">TBD</span>
@@ -1528,17 +1534,29 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           </td>
                         )}
                         <td className="py-2 px-3 font-mono">
-                          {row.winRate !== undefined ? (
+                          {isBlindGrading ? (
+                            <span className="text-slate-400 dark:text-slate-500 font-mono">???</span>
+                          ) : row.winRate !== undefined ? (
                             <span className="text-emerald-600 dark:text-emerald-400 font-bold">{(row.winRate * 100).toFixed(1)}%</span>
                           ) : (
                             <span className="text-amber-600 dark:text-amber-400 font-semibold">TBD</span>
                           )}
                         </td>
                         <td className="py-2 px-3 font-mono text-violet-700 dark:text-cyan-300">
-                          {row.landData ? row.landData.avg_seen.toFixed(1) : <span className="text-slate-400 dark:text-slate-500 font-mono">TBD</span>}
+                          {isBlindGrading ? (
+                            <span className="text-slate-400 dark:text-slate-500 font-mono">???</span>
+                          ) : row.landData ? (
+                            row.landData.avg_seen.toFixed(1)
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-500 font-mono">TBD</span>
+                          )}
                         </td>
                         <td className="py-2 px-3 font-mono">
-                          {row.isRated ? (
+                          {isBlindGrading ? (
+                            <span className="px-2 py-0.5 rounded text-[11px] bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 font-mono">
+                              Grading Mode
+                            </span>
+                          ) : row.isRated ? (
                             row.actualTier ? (
                               <span className={`px-2 py-0.5 rounded text-[11px] border ${verdict.color}`}>
                                 {verdict.text}
