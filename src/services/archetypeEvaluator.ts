@@ -611,10 +611,23 @@ export function generateSetMetaSummaryMarkdown(report: SetSynthesisReport): stri
     lines.push(`### 📊 Prediction Calibration Score: **${report.metaCalibrationScore}%** (${report.metaCalibrationTier})\n`);
   }
 
-  lines.push(`## 🎨 Monocolor Power Hierarchy (Creator Chain)`);
+  lines.push(`## 🎨 Monocolor Power Hierarchy (Draft Chain)`);
   const monoColors = report.colorRankings.filter((c) => c.color !== 'C');
-  const chainPips = monoColors.map((c) => c.name).join(' > ');
-  const chainGrades = monoColors.map((c) => `Grade ${c.letterGrade}`).join(' > ');
+  let chainPips = '';
+  let chainGrades = '';
+  monoColors.forEach((c, i) => {
+    chainPips += c.name;
+    chainGrades += `Grade ${c.letterGrade}`;
+    if (i < monoColors.length - 1) {
+      const next = monoColors[i + 1];
+      const isTied =
+        (c.ratedCards === 0 && next.ratedCards === 0) ||
+        (c.ratedCards > 0 && next.ratedCards > 0 && Math.abs(c.averageScore - next.averageScore) < 0.01);
+      const sep = isTied ? ' = ' : ' > ';
+      chainPips += sep;
+      chainGrades += sep;
+    }
+  });
   lines.push(`**Colors:** ${chainPips}`);
   lines.push(`**Tiers:**  ${chainGrades}\n`);
 

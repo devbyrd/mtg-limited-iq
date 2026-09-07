@@ -19,7 +19,7 @@ import { EvaluationHub } from './components/Evaluation/EvaluationHub';
 import { StatsDashboard } from './components/Stats/StatsDashboard';
 import { SetExplorer } from './components/Explorer/SetExplorer';
 import { parseAppUrlParams, updateAppUrlParams } from './services/urlParams';
-import { Brain, Zap, BarChart3 } from 'lucide-react';
+import { Brain, Flame } from 'lucide-react';
 import { PlaneswalkerSymbol } from './components/UI/PlaneswalkerSymbol';
 import { SetBadge, SetSymbol } from './components/UI/SetSymbol';
 
@@ -341,37 +341,57 @@ export const App: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Subtabs Pill Switcher */}
-                    <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#060a1d] border border-slate-200/90 dark:border-slate-800/80 shadow-xs">
-                      <button
-                        onClick={() => {
-                          setQuizSubTab('take');
-                          updateAppUrlParams({ tab: 'quiz', subtab: undefined });
-                        }}
-                        className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                          quizSubTab === 'take'
-                            ? 'bg-violet-600 text-white shadow-xs font-bold'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        <span>Take Quiz</span>
-                      </button>
+                    {/* Right side: Streak, Level, and Subtabs */}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      {/* Streak & Level badges (moved from Navbar to Card Quiz) */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/50 text-amber-700 dark:text-amber-400 text-xs font-semibold whitespace-nowrap shadow-xs"
+                          title={`Current Streak: ${userStats.currentStreak}`}
+                        >
+                          <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                          <span>{userStats.currentStreak} Streak</span>
+                        </div>
 
-                      <button
-                        onClick={() => {
-                          setQuizSubTab('stats');
-                          updateAppUrlParams({ tab: 'quiz', subtab: 'stats' });
-                        }}
-                        className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                          quizSubTab === 'stats'
-                            ? 'bg-violet-600 text-white shadow-xs font-bold'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        <span>Quiz Mastery Stats</span>
-                      </button>
+                        <div
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#060a1d] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium whitespace-nowrap shadow-xs"
+                          title={`Level ${userStats.level} (${userStats.xp} Total XP) • Gain XP by taking quizzes and grading cards`}
+                        >
+                          <span className="font-mono font-bold text-violet-600 dark:text-violet-400">Lv.{userStats.level}</span>
+                          <span className="text-slate-500 dark:text-slate-400 text-[11px]">({userStats.xp} XP)</span>
+                        </div>
+                      </div>
+
+                      {/* Subtabs Pill Switcher (Text only, NO icons on sub modes) */}
+                      <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#060a1d] border border-slate-200/90 dark:border-slate-800/80 shadow-xs">
+                        <button
+                          onClick={() => {
+                            setQuizSubTab('take');
+                            updateAppUrlParams({ tab: 'quiz', subtab: undefined });
+                          }}
+                          className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                            quizSubTab === 'take'
+                              ? 'bg-violet-600 text-white shadow-xs font-bold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                          }`}
+                        >
+                          Take Quiz
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setQuizSubTab('stats');
+                            updateAppUrlParams({ tab: 'quiz', subtab: 'stats' });
+                          }}
+                          className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                            quizSubTab === 'stats'
+                              ? 'bg-violet-600 text-white shadow-xs font-bold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                          }`}
+                        >
+                          Mastery Stats
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

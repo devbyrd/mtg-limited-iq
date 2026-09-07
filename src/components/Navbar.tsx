@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, BarChart3, Layers, BookOpen, ChevronDown, Trophy, Check, Link2, Sun, Moon, RefreshCw, Zap } from 'lucide-react';
+import { ChevronDown, Check, Link2, Sun, Moon, RefreshCw } from 'lucide-react';
 import { SetInfo, UserProfileStats, UserAccount } from '../types/mtg';
 import { getSyncStatus, subscribeSyncStatus, SyncStatus } from '../services/cloudSync';
 import { getStoredTheme, toggleTheme, ThemeMode } from '../services/theme';
@@ -86,98 +86,65 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#060a1d] border border-slate-200/90 dark:border-slate-800/80 shadow-xs overflow-x-auto no-scrollbar shrink-0">
             <button
               onClick={() => onTabChange('quiz')}
-              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'quiz'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Card Quiz</span>
+              Quiz
             </button>
 
             <button
               onClick={() => onTabChange('evaluation')}
-              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'evaluation'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Card Grading Hub</span>
+              Grading
             </button>
 
             <button
               onClick={() => onTabChange('explorer')}
-              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'explorer'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Card List</span>
+              List
             </button>
           </nav>
 
-          {/* Right Side: Theme Toggle, Set Switcher, Streak & User Profile */}
+          {/* Right Side: Theme Toggle, Set Switcher, Share Link & User Profile */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Dark / Light Mode Toggle Button */}
+            {/* Dark / Light Mode Toggle Button (Icon Only) */}
             <button
               onClick={handleToggleTheme}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shrink-0 shadow-xs text-xs font-bold"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shrink-0 shadow-xs flex items-center justify-center"
               title={`Switch to ${currentTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
               aria-label="Toggle Theme"
             >
               {currentTheme === 'dark' ? (
-                <>
-                  <Sun className="w-4 h-4 text-amber-400 fill-amber-400/20" />
-                  <span className="hidden sm:inline">Light Mode</span>
-                </>
+                <Sun className="w-4 h-4 text-amber-400 fill-amber-400/20" />
               ) : (
-                <>
-                  <Moon className="w-4 h-4 text-violet-700 fill-violet-700/20" />
-                  <span className="hidden sm:inline">Dark Mode</span>
-                </>
+                <Moon className="w-4 h-4 text-violet-700 fill-violet-700/20" />
               )}
             </button>
 
-            {/* Streak & Level (Large screens) */}
-            <div className="hidden xl:flex items-center gap-1.5 shrink-0">
-              <div
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-amber-600 dark:text-amber-400 text-xs font-semibold whitespace-nowrap"
-                title={`Current Streak: ${userStats.currentStreak}`}
-              >
-                <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                <span>{userStats.currentStreak} Streak</span>
-              </div>
-
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium whitespace-nowrap"
-                title={`Level ${userStats.level} (${userStats.xp} Total XP) • Gain XP by grading cards and answering quiz flashcards`}
-              >
-                <span className="font-mono font-bold text-violet-600 dark:text-violet-400">Lv.{userStats.level}</span>
-                <span className="text-slate-500 dark:text-slate-400 text-[11px]">({userStats.xp} XP)</span>
-              </div>
-            </div>
-
-            {/* Share / Troubleshoot Link Button */}
+            {/* Share / Troubleshoot Link Button (Icon Only) */}
             <button
               onClick={handleCopyTroubleshootLink}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl transition-all shadow-xs cursor-pointer shrink-0 text-xs font-semibold text-slate-700 dark:text-slate-300"
-              title="Copy current shareable troubleshooting URL to clipboard"
+              className="p-2 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl transition-all shadow-xs cursor-pointer shrink-0 text-slate-700 dark:text-slate-300 flex items-center justify-center"
+              title="Copy shareable link to clipboard"
+              aria-label="Share Link"
             >
               {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs hidden sm:inline">Copied!</span>
-                </>
+                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               ) : (
-                <>
-                  <Link2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                  <span className="text-xs hidden md:inline">Share Link</span>
-                </>
+                <Link2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
               )}
             </button>
 

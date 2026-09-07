@@ -411,79 +411,64 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
     <div className="max-w-[1440px] mx-auto py-4 px-3 sm:px-6 space-y-4 animate-in fade-in duration-200">
       {/* UNIFIED TOP-DOCKED CONTROL BAR (Single row, no-wrap, responsive) */}
       <div className="flex flex-row items-center justify-between gap-2.5 p-2.5 sm:p-3.5 rounded-2xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs overflow-x-auto no-scrollbar">
-        {/* Left: Set Identity & Sub-tabs */}
+        {/* Left: Sub-tabs (No icons, text-only pills) */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <SetBadge setCode={currentSetCode} />
-            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white font-heading hidden lg:inline max-w-[180px] truncate">
-              {currentSetName}
-            </span>
-          </div>
-
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden md:block shrink-0" />
-
-          {/* Sub-tabs: Docked directly at the top */}
           <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-[#060a1d] p-1 rounded-2xl border border-slate-200/90 dark:border-slate-800/80 shadow-xs shrink-0">
             <button
               onClick={() => setActiveSubTab('grade')}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeSubTab === 'grade'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 dark:text-amber-400 shrink-0" />
-              <span>Grade Cards</span>
+              Grade Cards
             </button>
 
             <button
               onClick={() => setActiveSubTab('forecast')}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeSubTab === 'forecast'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-600 dark:text-cyan-400 shrink-0" />
-              <span>Archetype Forecast</span>
+              Archetype Forecast
             </button>
 
             {effective17LandsData && (
               <button
                 onClick={() => setActiveSubTab('calibration')}
-                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeSubTab === 'calibration'
                     ? 'bg-violet-600 text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <Scale className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-600 dark:text-cyan-400 shrink-0" />
-                <span>Grade vs 17Lands {calibrationSummary.totalRated > 0 ? `(${calibrationSummary.calibrationScore}%)` : ''}</span>
+                Grade vs 17Lands {calibrationSummary.totalRated > 0 ? `(${calibrationSummary.calibrationScore}%)` : ''}
               </button>
             )}
 
             <button
               onClick={() => setActiveSubTab('notes')}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeSubTab === 'notes'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Draft Notes</span>
+              Draft Notes
             </button>
 
             <button
               onClick={() => setActiveSubTab('methodology')}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeSubTab === 'methodology'
                   ? 'bg-violet-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
             >
-              <Calculator className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-violet-600 dark:text-cyan-400 shrink-0" />
-              <span>Analytics & Math Guide</span>
+              Analytics & Math Guide
             </button>
           </div>
         </div>
@@ -511,10 +496,10 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                   ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
                   : 'bg-slate-100 dark:bg-[#050818] hover:bg-slate-200 dark:hover:bg-[#10163b] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               }`}
-              title="Toggle blind grading to hide/show 17Lands win rate data"
+              title="Toggle grading mode to hide/show 17Lands win rate data"
             >
               {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <Eye className="w-3.5 h-3.5 text-violet-600 dark:text-cyan-400 shrink-0" />}
-              <span>{isBlindGrading ? 'Blind Mode' : '17Lands Mode'}</span>
+              <span>{isBlindGrading ? 'Grading Mode' : '17Lands Mode'}</span>
             </button>
           ) : (
             <div

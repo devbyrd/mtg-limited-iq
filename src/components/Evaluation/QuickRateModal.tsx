@@ -353,10 +353,10 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                     ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
                     : 'bg-slate-100 text-slate-700 border-slate-200 hover:text-slate-900 dark:bg-[#050818] dark:text-slate-400 dark:border-slate-800 dark:hover:text-white'
                 }`}
-                title={isBlindGrading ? 'Blind mode: 17Lands benchmark data is hidden' : '17Lands benchmark data is visible'}
+                title={isBlindGrading ? 'Grading mode: 17Lands benchmark data is hidden' : '17Lands benchmark data is visible'}
               >
                 {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className="w-3.5 h-3.5 text-violet-600 dark:text-cyan-400" />}
-                <span>{isBlindGrading ? 'Blind Mode' : '17Lands Visible'}</span>
+                <span>{isBlindGrading ? 'Grading Mode' : '17Lands Visible'}</span>
               </button>
             )}
 

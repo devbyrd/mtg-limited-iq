@@ -51,7 +51,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
     if (isBlindGrading) {
       return (
         <span className="px-2.5 py-1 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 text-xs font-bold">
-          Blind Mode (Hidden)
+          Grading Mode (Hidden)
         </span>
       );
     }

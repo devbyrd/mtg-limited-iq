@@ -134,7 +134,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
                 isBlindGrading ? (
                   <span className="text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 border border-amber-300 dark:border-amber-500/40 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
                     <EyeOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    Blind Mode Active (17Lands Hidden)
+                    Grading Mode Active (17Lands Hidden)
                   </span>
                 ) : (
                   <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/40 px-2.5 py-0.5 rounded-md flex items-center gap-1">
@@ -206,7 +206,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             <div className="flex items-center gap-2.5">
               <EyeOff className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="text-slate-700 dark:text-slate-300">
-                <strong className="text-slate-900 dark:text-white">Blind Mode Active:</strong> 17Lands empirical win rates, rank comparisons, and meta calibration alignment scores are hidden for unbiased draft practice.
+                <strong className="text-slate-900 dark:text-white">Grading Mode Active:</strong> 17Lands empirical win rates, rank comparisons, and meta calibration alignment scores are hidden for unbiased draft practice.
               </span>
             </div>
           </div>
@@ -492,9 +492,6 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-violet-700 dark:text-cyan-300 bg-violet-100 dark:bg-violet-950/80 px-2.5 py-0.5 rounded-md border border-violet-200 dark:border-violet-700/50">
                 Draft Power Chain
               </span>
-              <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-heading">
-                Creator-Style Color Rankings
-              </h4>
             </div>
             {colorless && (
               <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1.5 self-start sm:self-auto bg-slate-50 dark:bg-[#050818] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
@@ -512,7 +509,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             )}
           </div>
 
-          {/* Primary Creator Row: User Read */}
+          {/* Primary Row: User Read */}
           <div className="space-y-1.5">
             <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <span>Your Evaluation Read</span>
@@ -522,6 +519,13 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-3.5 overflow-x-auto pb-2 pt-1">
               {monoColors.map((col, idx) => {
                 const isLast = idx === monoColors.length - 1;
+                const nextCol = monoColors[idx + 1];
+                const isTied = Boolean(
+                  nextCol && (
+                    (col.ratedCards === 0 && nextCol.ratedCards === 0) ||
+                    (col.ratedCards > 0 && nextCol.ratedCards > 0 && Math.abs(col.averageScore - nextCol.averageScore) < 0.01)
+                  )
+                );
                 return (
                   <React.Fragment key={col.color}>
                     {/* Color Column */}
@@ -547,10 +551,10 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
                       </span>
                     </div>
 
-                    {/* Separator Chevron / > */}
+                    {/* Separator Chevron / > or = */}
                     {!isLast && (
                       <div className="text-lg sm:text-2xl font-black text-slate-400 dark:text-slate-600 px-0.5 select-none shrink-0 self-center">
-                        &gt;
+                        {isTied ? '=' : '>'}
                       </div>
                     )}
                   </React.Fragment>
@@ -559,7 +563,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             </div>
           </div>
 
-          {/* Secondary Creator Row: 17Lands Arena Reality (if available) */}
+          {/* Secondary Row: 17Lands Arena Reality (if available) */}
           {!isBlindGrading && (
             report.has17LandsData && sorted17Colors.length > 0 ? (
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
@@ -571,6 +575,14 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
                 <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-3.5 overflow-x-auto pb-1 pt-1">
                   {sorted17Colors.map((col, idx) => {
                     const isLast = idx === sorted17Colors.length - 1;
+                    const next17 = sorted17Colors[idx + 1];
+                    const is17Tied = Boolean(
+                      next17 && (
+                        (col.seventeenLandsAvgWinRate === undefined && next17.seventeenLandsAvgWinRate === undefined) ||
+                        (col.seventeenLandsAvgWinRate !== undefined && next17.seventeenLandsAvgWinRate !== undefined &&
+                         Math.abs(col.seventeenLandsAvgWinRate - next17.seventeenLandsAvgWinRate) < 0.001)
+                      )
+                    );
                     return (
                       <React.Fragment key={col.color}>
                         <div className="flex flex-col items-center gap-1 min-w-[64px] sm:min-w-[84px] p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/30 shadow-xs">
@@ -593,7 +605,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
 
                         {!isLast && (
                           <div className="text-base sm:text-xl font-black text-emerald-400 dark:text-emerald-700/60 px-0.5 select-none shrink-0 self-center">
-                            &gt;
+                            {is17Tied ? '=' : '>'}
                           </div>
                         )}
                       </React.Fragment>
