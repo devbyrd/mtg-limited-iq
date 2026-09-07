@@ -231,6 +231,10 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
     ? userEvaluations[`${selectedCardForModal.set.toLowerCase()}_${selectedCardForModal.name.toLowerCase()}`]
     : undefined;
 
+  const activeCard17LandsData = selectedCardForModal
+    ? seventeenLandsData?.cards?.[selectedCardForModal.name]
+    : undefined;
+
   const getTierBadgeStyle = (tier: GradeTier) => {
     if (tier.startsWith('A')) return 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 hover:bg-amber-200 dark:hover:bg-amber-500/30 font-bold';
     if (tier.startsWith('B')) return 'bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40 hover:bg-cyan-200 dark:hover:bg-cyan-500/30 font-bold';
@@ -569,7 +573,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   </div>
 
                   <a
-                    href={get17LandsCardUrl(card.set, card.name)}
+                    href={get17LandsCardUrl(card.set, card, landData)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
@@ -858,7 +862,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   {selectedCardForModal.name}
                 </h2>
                 <a
-                  href={get17LandsCardUrl(selectedCardForModal.set, selectedCardForModal.name)}
+                  href={get17LandsCardUrl(selectedCardForModal.set, selectedCardForModal, activeCard17LandsData)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors shrink-0"
@@ -1090,7 +1094,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                     <span className="text-slate-400 dark:text-slate-600">•</span>
 
                     <a
-                      href={get17LandsCardUrl(selectedCardForModal.set, selectedCardForModal.name)}
+                      href={get17LandsCardUrl(selectedCardForModal.set, selectedCardForModal, activeCard17LandsData)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-violet-600 dark:text-cyan-400 hover:text-violet-800 dark:hover:text-cyan-300 flex items-center gap-1 underline transition-colors"

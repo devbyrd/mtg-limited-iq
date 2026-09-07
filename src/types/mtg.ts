@@ -20,6 +20,7 @@ export interface CardFace {
 
 export interface Card {
   id: string;
+  arena_id?: number;
   name: string;
   set: string;
   set_name: string;
@@ -78,6 +79,8 @@ export interface SeventeenLandsCardRating {
   tier_grade?: string; // e.g. "A+", "B", "C+"
   ever_drawn_win_rate?: number;
   opening_hand_win_rate?: number;
+  card_id?: number | string;
+  mtga_id?: number;
 }
 
 export interface SeventeenLandsSetData {

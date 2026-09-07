@@ -1,6 +1,6 @@
 import { getFallbackCards, POPULAR_LIMITED_SETS } from '../services/scryfall';
 import { generateQuiz } from '../services/quizGenerator';
-import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS, isSetUnderTwoWeeksOld, is17LandsEligibleForSet } from '../services/seventeenLands';
+import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS, isSetUnderTwoWeeksOld, is17LandsEligibleForSet, get17LandsCardUrl } from '../services/seventeenLands';
 import { UserProfileStats, QuizResult, QuizSettings, UserCardEvaluation, Card, SeventeenLandsSetData } from '../types/mtg';
 import { calculateMasteryRank, defaultStats } from '../services/storage';
 import { isAuthentic17LandsDataSet, generateSetSynthesisReport } from '../services/archetypeEvaluator';
@@ -259,5 +259,69 @@ for (const p1p1 of p1p1Questions) {
   );
 }
 console.log('   ✓ Unreleased and < 2-week-old sets strictly exclude 17Lands quiz questions and win rates.');
+
+// Test 7: Direct 17Lands Card URL Resolution
+console.log('\n[TEST 7] Direct 17Lands Card URL Resolution:');
+const hobCardWithArenaId: Card = {
+  id: 'hob-1',
+  arena_id: 103444,
+  name: 'Gollum, Riddle Master',
+  set: 'HOB',
+  set_name: 'The Hobbit',
+  collector_number: '123',
+  cmc: 3,
+  type_line: 'Creature',
+  colors: ['B'],
+  color_identity: ['B'],
+  rarity: 'rare',
+  keywords: [],
+};
+
+const hobUrl = get17LandsCardUrl('HOB', hobCardWithArenaId);
+console.log('   HOB card with arena_id ->', hobUrl);
+console.assert(
+  hobUrl === 'https://www.17lands.com/card_data/details?card_id=103444&expansion=HOB&format=PremierDraft&time_period=ALL_TIME',
+  'Must match target 17Lands card details URL with card_id'
+);
+
+const cardWithoutId: Card = {
+  id: 'blb-99',
+  name: 'Unknown Custom Card',
+  set: 'BLB',
+  set_name: 'Bloomburrow',
+  collector_number: '999',
+  cmc: 1,
+  type_line: 'Creature',
+  colors: ['G'],
+  color_identity: ['G'],
+  rarity: 'common',
+  keywords: [],
+};
+
+// With landData containing card_id
+const blbWithLandDataUrl = get17LandsCardUrl('BLB', cardWithoutId, { card_id: 91537 } as any);
+console.log('   BLB card with landData.card_id ->', blbWithLandDataUrl);
+console.assert(
+  blbWithLandDataUrl === 'https://www.17lands.com/card_data/details?card_id=91537&expansion=BLB&format=PremierDraft&time_period=ALL_TIME',
+  'Must resolve card_id from landData when card.arena_id is missing'
+);
+
+// Fallback when no ID exists
+const fallbackUrl = get17LandsCardUrl('BLB', cardWithoutId);
+console.log('   Card without ID fallback ->', fallbackUrl);
+console.assert(
+  fallbackUrl === 'https://www.17lands.com/card_data?expansion=BLB&format=PremierDraft&time_period=ALL_TIME',
+  'Must cleanly fall back to expansion card_data URL when no card_id exists'
+);
+
+// String backwards compatibility
+const stringUrlWithLandData = get17LandsCardUrl('BLB', 'Banishing Light', { mtga_id: 91537 } as any);
+console.log('   String cardName + landData.mtga_id ->', stringUrlWithLandData);
+console.assert(
+  stringUrlWithLandData === 'https://www.17lands.com/card_data/details?card_id=91537&expansion=BLB&format=PremierDraft&time_period=ALL_TIME',
+  'Must resolve mtga_id from landData when card is passed as string'
+);
+
+console.log('   ✓ 17Lands direct card URL resolution and fallbacks verified.');
 
 console.log('\n🎉 ALL LOGIC AND DATA VERIFICATION TESTS PASSED SUCCESSFULLY!');

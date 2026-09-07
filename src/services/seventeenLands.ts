@@ -64,10 +64,30 @@ export function get17LandsSetUrl(setCode: string): string {
 }
 
 /**
- * Returns the direct 17Lands.com Card Data URL for a specific card or set
+ * Returns the direct 17Lands.com Card Data URL for a specific card or set.
+ * If a card ID (MTGA ID) is available, navigates directly to that card's details page:
+ * e.g. https://www.17lands.com/card_data/details?card_id=103444&expansion=HOB&format=PremierDraft&time_period=ALL_TIME
+ * Otherwise, falls back cleanly to the expansion overview URL.
  */
-export function get17LandsCardUrl(setCode: string, cardName?: string): string {
+export function get17LandsCardUrl(
+  setCode: string,
+  cardOrName?: Card | { name?: string; arena_id?: number; card_id?: number | string; mtga_id?: number } | string | null,
+  card17L?: SeventeenLandsCardRating | null
+): string {
   const upper = (setCode || '').toUpperCase().trim();
+  let cardId: number | string | undefined;
+
+  if (cardOrName && typeof cardOrName === 'object') {
+    cardId = (cardOrName as any).arena_id ?? (cardOrName as any).card_id ?? (cardOrName as any).mtga_id;
+  }
+  if (!cardId && card17L) {
+    cardId = card17L.card_id ?? card17L.mtga_id;
+  }
+
+  if (cardId) {
+    return `https://www.17lands.com/card_data/details?card_id=${encodeURIComponent(String(cardId))}&expansion=${encodeURIComponent(upper)}&format=PremierDraft&time_period=ALL_TIME`;
+  }
+
   return `https://www.17lands.com/card_data?expansion=${encodeURIComponent(upper)}&format=PremierDraft&time_period=ALL_TIME`;
 }
 
@@ -223,7 +243,7 @@ const PRELOADED_17LANDS_DATA: Record<string, Record<string, Partial<SeventeenLan
 
 export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLandsSetData | null> {
   const upperCode = setCode.toUpperCase();
-  const cacheKey = `17lands_data_${upperCode}_v5`;
+  const cacheKey = `17lands_data_${upperCode}_v6`;
 
   try {
     const cached = await get<SeventeenLandsSetData>(cacheKey);
@@ -250,6 +270,8 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
         win_rate: wr,
         iwd: data.iwd || 0.015,
         tier_grade: data.tier_grade || winRateToGradeTier(wr),
+        card_id: data.card_id ?? data.mtga_id,
+        mtga_id: data.mtga_id ?? (typeof data.card_id === 'number' ? data.card_id : undefined),
       };
       cards[name] = cardRating;
       if (name.includes(' // ')) {
@@ -302,6 +324,7 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
               const games = item.game_count || item.ever_drawn_game_count || item.opening_hand_game_count || item.seen_count || 1000;
               totalGames += games;
               const name = item.name;
+              const cardId = item.mtga_id ?? item.id ?? item.card_id;
               const rating: SeventeenLandsCardRating = {
                 name,
                 color: item.color || '',
@@ -313,6 +336,8 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
                 win_rate: wr,
                 iwd: typeof item.drawn_improvement_win_rate === 'number' ? item.drawn_improvement_win_rate : (item.iwd || 0.01),
                 tier_grade: winRateToGradeTier(wr),
+                card_id: cardId,
+                mtga_id: typeof cardId === 'number' ? cardId : undefined,
               };
 
               cards[name] = rating;
@@ -387,6 +412,8 @@ export function generateEstimated17LandsData(cards: Card[]): SeventeenLandsSetDa
       win_rate: parseFloat(baseWr.toFixed(3)),
       iwd: parseFloat(baseIwd.toFixed(3)),
       tier_grade: winRateToGradeTier(baseWr),
+      card_id: c.arena_id,
+      mtga_id: c.arena_id,
     };
   });
 

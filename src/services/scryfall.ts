@@ -119,8 +119,15 @@ export function normalizeScryfallCard(rawCard: any): Card {
   const isCreature = typeLine.toLowerCase().includes('creature');
   const isLand = typeLine.toLowerCase().includes('land');
 
+  const arenaId = typeof rawCard.arena_id === 'number'
+    ? rawCard.arena_id
+    : rawCard.arena_id
+    ? Number(rawCard.arena_id)
+    : (rawCard.card_faces?.[0]?.arena_id ? Number(rawCard.card_faces[0].arena_id) : undefined);
+
   const card: Card = {
     id: rawCard.id,
+    arena_id: (typeof arenaId === 'number' && !isNaN(arenaId)) ? arenaId : undefined,
     name: rawCard.name,
     set: (rawCard.set || '').toUpperCase(),
     set_name: rawCard.set_name || '',
@@ -211,7 +218,7 @@ export async function fetchCardsForSet(
   onProgress?: (loaded: number, total: number) => void
 ): Promise<Card[]> {
   const upperCode = setCode.toUpperCase();
-  const cacheKey = `scryfall_cards_${upperCode}_v3`;
+  const cacheKey = `scryfall_cards_${upperCode}_v4`;
 
   try {
     const cached = await get<Card[]>(cacheKey);
