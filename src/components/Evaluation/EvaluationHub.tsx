@@ -33,6 +33,8 @@ interface EvaluationHubProps {
   currentSetName: string;
   userEvaluations: Record<string, UserCardEvaluation>;
   seventeenLandsData: SeventeenLandsSetData | null;
+  isBlindGrading?: boolean;
+  onToggleBlindGrading?: () => void;
   onSaveEvaluation: (evaluation: UserCardEvaluation) => void;
   onClearEvaluationsForSet?: (setCode: string) => void;
   onOpenSetSelector: () => void;
@@ -44,6 +46,8 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
   currentSetName,
   userEvaluations,
   seventeenLandsData,
+  isBlindGrading: propIsBlindGrading,
+  onToggleBlindGrading: propOnToggleBlindGrading,
   onSaveEvaluation,
   onClearEvaluationsForSet,
   onOpenSetSelector,
@@ -168,20 +172,26 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
     });
   };
 
-  // Blind grading state persisted per set in local storage
-  const [isBlindGrading, setIsBlindGrading] = useState<boolean>(() => {
+  // Blind grading state persisted per set in local storage (or controlled by parent)
+  const [internalBlindGrading, setInternalBlindGrading] = useState<boolean>(() => {
     return getBlindGradingForSet(currentSetCode);
   });
 
-  // Sync blind grading preference when set changes
+  // Sync internal blind grading preference when set changes
   useEffect(() => {
-    setIsBlindGrading(getBlindGradingForSet(currentSetCode));
+    setInternalBlindGrading(getBlindGradingForSet(currentSetCode));
   }, [currentSetCode]);
 
+  const isBlindGrading = propIsBlindGrading !== undefined ? propIsBlindGrading : internalBlindGrading;
+
   const handleToggleBlindGrading = () => {
-    const nextState = !isBlindGrading;
-    setIsBlindGrading(nextState);
-    setBlindGradingForSet(currentSetCode, nextState);
+    if (propOnToggleBlindGrading) {
+      propOnToggleBlindGrading();
+    } else {
+      const nextState = !internalBlindGrading;
+      setInternalBlindGrading(nextState);
+      setBlindGradingForSet(currentSetCode, nextState);
+    }
   };
 
   // Compute calibration summary using effective 17lands data

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, QuestionCategory, QuizOption, QuizQuestion, QuizResult, QuizSettings, SetInfo, SeventeenLandsSetData, UserCardEvaluation, UserProfileStats, UserAccount } from './types/mtg';
 import { fetchCardsForSet, fetchAllSets, POPULAR_LIMITED_SETS } from './services/scryfall';
 import { fetch17LandsSetData } from './services/seventeenLands';
-import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser } from './services/storage';
+import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser, getBlindGradingForSet, setBlindGradingForSet } from './services/storage';
 import { generateQuiz } from './services/quizGenerator';
 import { supabase, isSupabaseConfigured } from './services/supabase';
 import { supabaseUserToUserAccount } from './services/auth';
@@ -77,6 +77,23 @@ export const App: React.FC = () => {
   // User Stats & Evaluations State (Scoped to currentUser)
   const [userStats, setUserStats] = useState<UserProfileStats>(() => loadUserStats(currentUser.id));
   const [userEvaluations, setUserEvaluations] = useState<Record<string, UserCardEvaluation>>(() => loadUserEvaluations(currentUser.id));
+
+  // Blind Grading Preference (Shared between Grading Hub and Cards Explorer)
+  const [isBlindGrading, setIsBlindGrading] = useState<boolean>(() => {
+    return getBlindGradingForSet(currentSet.code, currentUser.id);
+  });
+
+  useEffect(() => {
+    setIsBlindGrading(getBlindGradingForSet(currentSet.code, currentUser.id));
+  }, [currentSet.code, currentUser.id]);
+
+  const handleToggleBlindGrading = useCallback(() => {
+    setIsBlindGrading((prev) => {
+      const next = !prev;
+      setBlindGradingForSet(currentSet.code, next, currentUser.id);
+      return next;
+    });
+  }, [currentSet.code, currentUser.id]);
 
   // Quiz Workflow State
   const [quizState, setQuizState] = useState<'setup' | 'active' | 'summary'>('setup');
@@ -462,6 +479,8 @@ export const App: React.FC = () => {
             currentSetName={currentSet.name}
             userEvaluations={userEvaluations}
             seventeenLandsData={seventeenLandsData}
+            isBlindGrading={isBlindGrading}
+            onToggleBlindGrading={handleToggleBlindGrading}
             onSaveEvaluation={handleSaveEvaluation}
             onClearEvaluationsForSet={handleClearEvaluationsForSet}
             onOpenSetSelector={() => setIsSetSelectorOpen(true)}
@@ -475,6 +494,8 @@ export const App: React.FC = () => {
             currentSetName={currentSet.name}
             userEvaluations={userEvaluations}
             seventeenLandsData={seventeenLandsData}
+            isBlindGrading={isBlindGrading}
+            onToggleBlindGrading={handleToggleBlindGrading}
             onSaveEvaluation={handleSaveEvaluation}
             onClearEvaluationsForSet={handleClearEvaluationsForSet}
             onGradeCard={(card) => {

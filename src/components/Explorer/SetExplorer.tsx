@@ -1,17 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, GradeTier, MTGColor, MTGRarity, SeventeenLandsSetData, UserCardEvaluation } from '../../types/mtg';
 import { CardObfuscator } from '../CardObfuscator';
-import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldCheck, ChevronLeft, ChevronRight, Trophy, Award, CheckCircle2, FileText, Star, BarChart2, Trash2 } from 'lucide-react';
+import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldCheck, ChevronLeft, ChevronRight, Trophy, Award, CheckCircle2, FileText, Star, BarChart2, Trash2, Eye, EyeOff, BookOpen, Layers } from 'lucide-react';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
-import { ManaCostRenderer } from '../UI/ManaSymbol';
+import { ManaCostRenderer, ManaSymbol } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
-import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, winRateToGradeTier } from '../../services/seventeenLands';
+import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, get17LandsArchetypeUrl, winRateToGradeTier } from '../../services/seventeenLands';
 import { GradeComparisonCard } from '../UI/GradeComparisonCard';
 import { PlaneswalkerSymbol } from '../UI/PlaneswalkerSymbol';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
 import { ManaColorFilterBar } from '../UI/ManaColorFilterBar';
 import { CardSearchBar } from '../Search/CardSearchBar';
 import { cardMatchesQuery } from '../../services/cardSearchParser';
+import { getWOTCArchetypesForSet, getSignpostsForArchetype, WOTCArchetype } from '../../services/wotcArchetypes';
+import { getBlindGradingForSet, setBlindGradingForSet } from '../../services/storage';
 
 interface SetExplorerProps {
   cards: Card[];
@@ -19,6 +21,8 @@ interface SetExplorerProps {
   currentSetName: string;
   userEvaluations?: Record<string, UserCardEvaluation>;
   seventeenLandsData: SeventeenLandsSetData | null;
+  isBlindGrading?: boolean;
+  onToggleBlindGrading?: () => void;
   onSaveEvaluation?: (evaluation: UserCardEvaluation) => void;
   onClearEvaluationsForSet?: (setCode: string) => void;
   onGradeCard?: (card: Card) => void;
@@ -31,11 +35,14 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
   currentSetName,
   userEvaluations = {},
   seventeenLandsData,
+  isBlindGrading: propIsBlindGrading,
+  onToggleBlindGrading: propOnToggleBlindGrading,
   onSaveEvaluation,
   onClearEvaluationsForSet,
   onGradeCard,
   onPracticeCard,
 }) => {
+  const [activeExplorerTab, setActiveExplorerTab] = useState<'cards' | 'archetypes'>('cards');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('ALL');
   const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
@@ -43,16 +50,33 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [sortBy, setSortBy] = useState<'number' | 'name' | 'cmc' | 'winrate'>('number');
   const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null);
-  const [gradeDisplayMode, setGradeDisplayMode] = useState<'my_grade' | '17lands' | 'side_by_side'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('mtg_grade_display_mode');
-      if (saved === 'my_grade' || saved === '17lands' || saved === 'side_by_side') {
-        return saved;
-      }
-    }
-    return 'side_by_side';
-  });
   const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
+
+  // Blind grading state persisted per set in local storage (or controlled by parent)
+  const [internalBlindGrading, setInternalBlindGrading] = useState<boolean>(() => {
+    return getBlindGradingForSet(currentSetCode);
+  });
+
+  useEffect(() => {
+    setInternalBlindGrading(getBlindGradingForSet(currentSetCode));
+  }, [currentSetCode]);
+
+  const effectiveIsBlind = propIsBlindGrading !== undefined ? propIsBlindGrading : internalBlindGrading;
+
+  const handleToggleBlindGrading = () => {
+    if (propOnToggleBlindGrading) {
+      propOnToggleBlindGrading();
+    } else {
+      const next = !internalBlindGrading;
+      setInternalBlindGrading(next);
+      setBlindGradingForSet(currentSetCode, next);
+    }
+  };
+
+  // Curated WOTC Supported Archetypes for this set
+  const wotcArchetypes = useMemo(() => {
+    return getWOTCArchetypesForSet(currentSetCode, cards);
+  }, [currentSetCode, cards]);
 
   const ratedCountInSet = useMemo(() => {
     return cards.filter((c) => {
@@ -60,13 +84,6 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
       return Boolean(userEvaluations[key]);
     }).length;
   }, [cards, userEvaluations]);
-
-  const handleSetGradeDisplayMode = (mode: 'my_grade' | '17lands' | 'side_by_side') => {
-    setGradeDisplayMode(mode);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('mtg_grade_display_mode', mode);
-    }
-  };
 
   // Auto-open card from URL parameter for troubleshooting / deep linking
   useEffect(() => {
@@ -212,25 +229,59 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner with Direct 17Lands Set Link */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs">
-        <div className="space-y-1.5">
+      {/* Header Banner with Sub-Tabs & Set Overview */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs">
+        <div className="space-y-1.5 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <SetBadge setCode={currentSetCode} suffix="Cards" />
-            <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-violet-950/60 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-violet-500/30 font-mono">
-              Showing {filteredAndSortedCards.length} of {cards.length} cards
+            <SetBadge setCode={currentSetCode} />
+            <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-violet-950/60 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-violet-500/30 font-mono font-semibold">
+              {cards.length} Total Cards
+            </span>
+            <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#050818] px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800 font-mono">
+              {ratedCountInSet} Graded
+            </span>
+            <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#050818] px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800 font-mono">
+              {wotcArchetypes.length} Supported Archetypes
             </span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white font-heading">
-            {currentSetName} Cards
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-heading truncate">
+            {currentSetName} ({currentSetCode.toUpperCase()})
           </h1>
           <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl">
-            Inspect card artwork, check oracle rulings, filter combat tricks and removal, and assign your draft evaluations directly.
+            Browse the card pool, explore WOTC supported draft archetypes, and assign your personal card grades.
           </p>
+        </div>
+
+        {/* Sub-Tabs: Cards vs Supported Archetypes */}
+        <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
+          <nav className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#060a1d] border border-slate-200/90 dark:border-slate-800/80 shadow-xs">
+            <button
+              onClick={() => setActiveExplorerTab('cards')}
+              className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                activeExplorerTab === 'cards'
+                  ? 'bg-violet-600 text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              Cards
+            </button>
+            <button
+              onClick={() => setActiveExplorerTab('archetypes')}
+              className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                activeExplorerTab === 'archetypes'
+                  ? 'bg-violet-600 text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              Supported Archetypes
+            </button>
+          </nav>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
+      {activeExplorerTab === 'cards' ? (
+        <>
+          {/* Filter & Search Bar */}
       <div className="p-3 sm:p-3.5 bg-white dark:bg-[#090e24] rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs space-y-2.5">
         <div className="flex flex-col md:flex-row md:items-center gap-2.5">
           {/* Card Search Bar (Scryfall & Arena-style) */}
@@ -306,50 +357,38 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             ))}
           </div>
 
-          {/* Card Grade Display Mode: My Grade / 17Lands / Side-by-Side */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] uppercase font-bold text-slate-400 px-1 hidden xl:inline">
-              Card Grade:
-            </span>
+          {/* Grading Mode / Compare Mode Toggle (mimics state of Grade tab) */}
+          {seventeenLandsData ? (
             <button
               type="button"
-              onClick={() => handleSetGradeDisplayMode('my_grade')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                gradeDisplayMode === 'my_grade'
-                  ? 'bg-violet-600 text-white shadow-xs font-bold border border-violet-400/40'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              onClick={handleToggleBlindGrading}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 cursor-pointer min-w-[112px] shrink-0 whitespace-nowrap ${
+                effectiveIsBlind
+                  ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
+                  : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
               }`}
-              title="Show only your personal evaluation grade on each card"
+              title={
+                effectiveIsBlind
+                  ? 'Grading Mode: Benchmarks hidden. Click to switch to Compare Mode'
+                  : 'Compare Mode: 17Lands data visible. Click to switch to Grading Mode'
+              }
             >
-              My Grade
+              {effectiveIsBlind ? (
+                <EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              ) : (
+                <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              )}
+              <span>{effectiveIsBlind ? 'Grading Mode' : 'Compare Mode'}</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleSetGradeDisplayMode('17lands')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                gradeDisplayMode === '17lands'
-                  ? 'bg-emerald-600 text-white shadow-xs font-bold border border-emerald-400/40'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-              }`}
-              title="Show only 17Lands empirical win rate grade on each card"
+          ) : (
+            <div
+              className="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800/80 dark:text-slate-400 border border-slate-200 dark:border-slate-700/60 shrink-0 flex items-center gap-1"
+              title="17Lands benchmarks are available ~2 weeks after release"
             >
-              17Lands
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSetGradeDisplayMode('side_by_side')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                gradeDisplayMode === 'side_by_side'
-                  ? 'bg-gradient-to-r from-violet-600 to-emerald-600 text-white shadow-xs font-bold border border-slate-400/40'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-              }`}
-              title="Show both your personal grade and 17Lands grade stacked one on top of the other"
-            >
-              Side-by-Side
-            </button>
-          </div>
+              <EyeOff className="w-3 h-3 text-amber-500 shrink-0" />
+              <span>Grading Mode</span>
+            </div>
+          )}
 
           {/* Clear Grades Button (if rated cards exist in this set) */}
           {onClearEvaluationsForSet && ratedCountInSet > 0 && (
@@ -446,51 +485,54 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                         : null;
                       const hasUserGrade = Boolean(evalData?.userGrade);
 
-                      if (gradeDisplayMode === 'my_grade') {
-                        return (
-                          <div className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono" title="Your assigned grade">
-                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
-                            <span className="text-[11px] font-black">{hasUserGrade ? evalData!.userGrade : '—'}</span>
-                          </div>
-                        );
-                      }
-
-                      if (gradeDisplayMode === '17lands') {
-                        return (
-                          <div
-                            className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
-                              actualTier
-                                ? 'bg-emerald-950/95 text-white border border-emerald-400'
-                                : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                            }`}
-                            title={actualTier ? `17Lands Grade: ${actualTier}` : '17Lands data is available approximately 2 weeks after release'}
-                          >
-                            <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
-                            <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                              {actualTier || 'TBD'}
-                            </span>
-                          </div>
-                        );
-                      }
-
-                      // Side-by-Side: stacked left/right (horizontal) and smaller!
                       return (
                         <div className="flex items-center gap-1">
-                          <div className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono" title="Your assigned grade">
+                          <div
+                            className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono"
+                            title={hasUserGrade ? `Your assigned grade: ${evalData!.userGrade}` : 'Not graded yet'}
+                          >
                             <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
                             <span className="text-[11px] font-black">{hasUserGrade ? evalData!.userGrade : '—'}</span>
                           </div>
                           <div
                             className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
-                              actualTier
+                              effectiveIsBlind || !hasUserGrade
+                                ? 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
+                                : actualTier
                                 ? 'bg-emerald-950/95 text-white border border-emerald-400'
                                 : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
                             }`}
-                            title={actualTier ? `17Lands Grade: ${actualTier}` : '17Lands data is available approximately 2 weeks after release'}
+                            title={
+                              effectiveIsBlind
+                                ? '17Lands grade hidden in Grading Mode'
+                                : !hasUserGrade
+                                ? 'Rate the card to see how you compare'
+                                : actualTier
+                                ? `17Lands Grade: ${actualTier}`
+                                : '17Lands data is available approximately 2 weeks after release'
+                            }
                           >
-                            <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
-                            <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                              {actualTier || 'TBD'}
+                            <span
+                              className={`text-[8px] uppercase tracking-wider font-extrabold ${
+                                effectiveIsBlind || !hasUserGrade
+                                  ? 'text-slate-500'
+                                  : actualTier
+                                  ? 'text-emerald-300'
+                                  : 'text-slate-500'
+                              }`}
+                            >
+                              17L
+                            </span>
+                            <span
+                              className={`text-[11px] font-black ${
+                                effectiveIsBlind || !hasUserGrade
+                                  ? 'text-slate-400'
+                                  : actualTier
+                                  ? 'text-emerald-200'
+                                  : 'text-amber-500/80'
+                              }`}
+                            >
+                              {effectiveIsBlind || !hasUserGrade ? '—' : actualTier || 'TBD'}
                             </span>
                           </div>
                         </div>
@@ -529,7 +571,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   {/* Badges / Metrics */}
                   <div className="mt-1 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
                     <span>#{card.collector_number}</span>
-                    {landData ? (
+                    {!effectiveIsBlind && evalData?.userGrade && landData ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold" title="17Lands Premier Draft GIH Win Rate">
                         {(landData.win_rate * 100).toFixed(1)}% WR
                       </span>
@@ -541,6 +583,236 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+        </>
+      ) : (
+        <div className="space-y-6">
+          {/* Archetypes Subheader / Quick Metagame Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <BookOpen className="w-5 h-5 text-violet-600 dark:text-cyan-400 shrink-0" />
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                  WOTC Supported Archetypes • {currentSetName} ({currentSetCode.toUpperCase()})
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Official design themes, mechanics, and anchor signposts designed by Wizards of the Coast. Click any card to inspect.
+                </p>
+              </div>
+            </div>
+            <a
+              href={get17LandsArchetypeUrl(currentSetCode)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-[#050818] text-slate-700 dark:text-slate-200 hover:text-violet-600 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-1.5 shrink-0 self-start sm:self-center transition-colors"
+              title="Open 17Lands Deck Color Metagame"
+            >
+              <BarChart2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span>17Lands Metagame</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
+            </a>
+          </div>
+
+          {/* Archetypes Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+            {wotcArchetypes.map((archetype) => {
+              const signposts = getSignpostsForArchetype(archetype.code, cards);
+              const [c1, c2] = archetype.colors;
+
+              return (
+                <div
+                  key={archetype.code}
+                  className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                >
+                  <div className="space-y-4">
+                    {/* Archetype Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/70 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shrink-0">
+                          <ManaSymbol symbol={c1} size="md" />
+                          <ManaSymbol symbol={c2} size="md" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
+                              {archetype.name}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800/50">
+                              {archetype.code}
+                            </span>
+                          </div>
+                          <p className="text-xs font-semibold text-violet-600 dark:text-cyan-400 mt-0.5">
+                            {archetype.headline}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Official WOTC Description */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#060a1d] border border-slate-200/70 dark:border-slate-800/70 space-y-2">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        <BookOpen className="w-3.5 h-3.5 text-violet-500" />
+                        <span>WOTC Design Strategy</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {archetype.description}
+                      </p>
+                      {archetype.mechanics && archetype.mechanics.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {archetype.mechanics.map((mech) => (
+                            <span
+                              key={mech}
+                              className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-2xs"
+                            >
+                              #{mech}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Signposts Uncommons / Key Cards */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Signpost Uncommons & Key Cards ({signposts.length})</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">Click card to inspect</span>
+                      </div>
+
+                      {signposts.length === 0 ? (
+                        <p className="text-xs text-slate-400 italic p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800">
+                          No dedicated two-color signpost cards found in the loaded set pool.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                          {signposts.map((signpostCard) => {
+                            const evalKey = `${signpostCard.set?.toLowerCase() || ''}_${signpostCard.name?.toLowerCase() || ''}`;
+                            const signpostEval = userEvaluations[evalKey];
+                            const signpostLand = seventeenLandsData?.cards ? seventeenLandsData.cards[signpostCard.name] : null;
+                            const signpostActualTier: GradeTier | null =
+                              signpostLand && typeof signpostLand.win_rate === 'number' && signpostLand.win_rate > 0
+                                ? ((signpostLand.tier_grade as GradeTier) || winRateToGradeTier(signpostLand.win_rate))
+                                : null;
+                            const hasSignpostGrade = Boolean(signpostEval?.userGrade);
+
+                            return (
+                              <div
+                                key={signpostCard.id}
+                                onClick={() => handleSelectModalCard(signpostCard)}
+                                className="group relative flex flex-col items-center p-2 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-[#060a1d] dark:hover:bg-[#0a0f2c] border border-slate-200 dark:border-slate-800 hover:border-violet-400 dark:hover:border-cyan-400/60 shadow-xs transition-all cursor-pointer text-center"
+                                title={`Inspect & Grade ${signpostCard.name}`}
+                              >
+                                {/* Mini Top Bar: YOU & 17L Badges */}
+                                <div className="w-full flex items-center justify-between gap-1 mb-1">
+                                  <div className="flex items-center gap-1">
+                                    <div
+                                      className="px-1 py-0.2 rounded bg-violet-950/95 text-white border border-violet-400 text-[9px] font-mono font-black"
+                                      title={hasSignpostGrade ? `Your Grade: ${signpostEval!.userGrade}` : 'Not graded'}
+                                    >
+                                      {hasSignpostGrade ? signpostEval!.userGrade : '—'}
+                                    </div>
+                                    <div
+                                      className={`px-1 py-0.2 rounded text-[9px] font-mono font-black border ${
+                                        effectiveIsBlind || !hasSignpostGrade
+                                          ? 'bg-slate-900/90 text-slate-400 border-slate-700/80'
+                                          : signpostActualTier
+                                          ? 'bg-emerald-950/95 text-emerald-200 border-emerald-400'
+                                          : 'bg-slate-900/90 text-slate-400 border-slate-700/80'
+                                      }`}
+                                      title={
+                                        effectiveIsBlind
+                                          ? '17Lands hidden in Grading Mode'
+                                          : !hasSignpostGrade
+                                          ? 'Rate to see how you compare'
+                                          : signpostActualTier
+                                          ? `17L Grade: ${signpostActualTier}`
+                                          : 'TBD'
+                                      }
+                                    >
+                                      {effectiveIsBlind || !hasSignpostGrade ? '—' : signpostActualTier || 'TBD'}
+                                    </div>
+                                  </div>
+                                  {signpostCard.mana_cost && (
+                                    <ManaCostRenderer manaCost={signpostCard.mana_cost} size="sm" />
+                                  )}
+                                </div>
+
+                                {/* Thumbnail Artwork */}
+                                <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 relative mb-1.5">
+                                  <img
+                                    src={
+                                      signpostCard.image_uris?.art_crop ||
+                                      signpostCard.image_uris?.normal ||
+                                      'https://cards.scryfall.io/back.jpg'
+                                    }
+                                    alt={signpostCard.name}
+                                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                  />
+                                </div>
+
+                                <div className="w-full text-left">
+                                  <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate group-hover:text-violet-600 dark:group-hover:text-cyan-300 transition-colors">
+                                    {signpostCard.name}
+                                  </div>
+                                  <div className="flex items-center justify-between text-[9px] font-mono text-slate-500 mt-0.5">
+                                    <span className="capitalize">{signpostCard.rarity}</span>
+                                    {!effectiveIsBlind && hasSignpostGrade && signpostLand && (
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                        {(signpostLand.win_rate * 100).toFixed(1)}% WR
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Archetype Card Actions */}
+                  <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveExplorerTab('cards');
+                        setSelectedColor('ALL');
+                        setSelectedRarity('ALL');
+                        setSelectedRole('ALL');
+                        setFilterRatedStatus('ALL');
+                        setSearchQuery(`id<=${archetype.code.toLowerCase()}`);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-violet-50 dark:bg-violet-950/50 hover:bg-violet-100 dark:hover:bg-violet-900/60 text-violet-700 dark:text-cyan-300 border border-violet-200 dark:border-violet-800/50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Explore {archetype.code} Cards</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveExplorerTab('cards');
+                        setSelectedColor('ALL');
+                        setSelectedRarity('ALL');
+                        setSelectedRole('ALL');
+                        setFilterRatedStatus('ALL');
+                        setSearchQuery(`c:${archetype.code.toLowerCase()}`);
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                      title={`Filter to multi-color gold ${archetype.code} cards`}
+                    >
+                      Gold Only
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -667,51 +939,54 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                         : null;
                       const hasUserGrade = Boolean(activeCardEval?.userGrade);
 
-                      if (gradeDisplayMode === 'my_grade') {
-                        return (
-                          <div className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono" title="Your assigned grade">
-                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
-                            <span className="text-[11px] font-black">{hasUserGrade ? activeCardEval!.userGrade : '—'}</span>
-                          </div>
-                        );
-                      }
-
-                      if (gradeDisplayMode === '17lands') {
-                        return (
-                          <div
-                            className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
-                              actualTier
-                                ? 'bg-emerald-950/95 text-white border border-emerald-400'
-                                : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                            }`}
-                            title={actualTier ? `17Lands Grade: ${actualTier}` : '17Lands data is available approximately 2 weeks after release'}
-                          >
-                            <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
-                            <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                              {actualTier || 'TBD'}
-                            </span>
-                          </div>
-                        );
-                      }
-
-                      // Side-by-Side: stacked left/right (horizontal) and smaller!
                       return (
                         <div className="flex items-center gap-1.5">
-                          <div className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono" title="Your assigned grade">
+                          <div
+                            className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono"
+                            title={hasUserGrade ? `Your assigned grade: ${activeCardEval!.userGrade}` : 'Not graded yet'}
+                          >
                             <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
                             <span className="text-[11px] font-black">{hasUserGrade ? activeCardEval!.userGrade : '—'}</span>
                           </div>
                           <div
                             className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
-                              actualTier
+                              effectiveIsBlind || !hasUserGrade
+                                ? 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
+                                : actualTier
                                 ? 'bg-emerald-950/95 text-white border border-emerald-400'
                                 : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
                             }`}
-                            title={actualTier ? `17Lands Grade: ${actualTier}` : '17Lands data is available approximately 2 weeks after release'}
+                            title={
+                              effectiveIsBlind
+                                ? '17Lands grade hidden in Grading Mode'
+                                : !hasUserGrade
+                                ? 'Rate the card to see how you compare'
+                                : actualTier
+                                ? `17Lands Grade: ${actualTier}`
+                                : '17Lands data is available approximately 2 weeks after release'
+                            }
                           >
-                            <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
-                            <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                              {actualTier || 'TBD'}
+                            <span
+                              className={`text-[8px] uppercase tracking-wider font-extrabold ${
+                                effectiveIsBlind || !hasUserGrade
+                                  ? 'text-slate-500'
+                                  : actualTier
+                                  ? 'text-emerald-300'
+                                  : 'text-slate-500'
+                              }`}
+                            >
+                              17L
+                            </span>
+                            <span
+                              className={`text-[11px] font-black ${
+                                effectiveIsBlind || !hasUserGrade
+                                  ? 'text-slate-400'
+                                  : actualTier
+                                  ? 'text-emerald-200'
+                                  : 'text-amber-500/80'
+                              }`}
+                            >
+                              {effectiveIsBlind || !hasUserGrade ? '—' : actualTier || 'TBD'}
                             </span>
                           </div>
                         </div>
@@ -797,13 +1072,28 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                     card={selectedCardForModal}
                     userEval={activeCardEval}
                     landData={seventeenLandsData?.cards?.[selectedCardForModal.name]}
+                    isBlindGrading={effectiveIsBlind}
                   />
 
                   {/* Oracle Rules Text Box */}
                   <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800/80 space-y-1.5">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Oracle Rules Text
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Oracle Rules Text
+                      </span>
+                      {selectedCardForModal.scryfall_uri && (
+                        <a
+                          href={selectedCardForModal.scryfall_uri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-600 dark:text-cyan-400 hover:underline"
+                          title="View official Scryfall & Gatherer rulings"
+                        >
+                          <span>Rulings</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                     <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-sans leading-relaxed whitespace-pre-line">
                       {selectedCardForModal.oracle_text || 'No oracle rules text.'}
                     </p>
