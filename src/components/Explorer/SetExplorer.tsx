@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, GradeTier, MTGColor, MTGRarity, SeventeenLandsSetData, UserCardEvaluation } from '../../types/mtg';
 import { CardObfuscator } from '../CardObfuscator';
-import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldCheck, ChevronLeft, ChevronRight, Trophy, Award, CheckCircle2, FileText, Star, BarChart2, Trash2, Eye, EyeOff, BookOpen, Layers } from 'lucide-react';
+import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldCheck, ChevronLeft, ChevronRight, CheckCircle2, FileText, Star, BarChart2, Trash2, Eye, EyeOff, BookOpen, Layers } from 'lucide-react';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
 import { ManaCostRenderer, ManaSymbol } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
@@ -847,24 +847,6 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {/* 🌟 TOP GRADE BUTTON: Grade Card in Hub */}
-                {onGradeCard && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onGradeCard(selectedCardForModal);
-                      handleSelectModalCard(null);
-                    }}
-                    className="px-3 sm:px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-violet-400/50 shrink-0 whitespace-nowrap"
-                    title="Open this card in the Card Grading Hub"
-                  >
-                    <Trophy className="w-3.5 h-3.5 text-amber-300" />
-                    <span>
-                      {activeCardEval ? `Grade: ${activeCardEval.userGrade}` : '⭐ Grade in Hub'}
-                    </span>
-                  </button>
-                )}
-
                 <button
                   onClick={handlePrevCard}
                   disabled={currentModalIndex <= 0}
@@ -929,82 +911,47 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             <div className="flex-1 overflow-hidden p-5 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
               {/* Left Column: Large Visual Card Artwork */}
               <div className="md:col-span-5 flex flex-col items-center justify-center shrink-0">
-                {/* Top Bar above card: Grade badge(s) on the top left (stacked left/right), rarity and CMC on the right */}
-                <div className="w-[305px] max-w-full flex items-center justify-between gap-2 mb-1.5 min-h-[22px]">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {(() => {
-                      const modalLand = seventeenLandsData?.cards ? seventeenLandsData.cards[selectedCardForModal.name] : null;
-                      const actualTier: GradeTier | null = (modalLand && typeof modalLand.win_rate === 'number' && modalLand.win_rate > 0)
-                        ? ((modalLand.tier_grade as GradeTier) || winRateToGradeTier(modalLand.win_rate))
-                        : null;
-                      const hasUserGrade = Boolean(activeCardEval?.userGrade);
-
-                      return (
-                        <div className="flex items-center gap-1.5">
-                          <div
-                            className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono"
-                            title={hasUserGrade ? `Your assigned grade: ${activeCardEval!.userGrade}` : 'Not graded yet'}
-                          >
-                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
-                            <span className="text-[11px] font-black">{hasUserGrade ? activeCardEval!.userGrade : '—'}</span>
-                          </div>
-                          <div
-                            className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
-                              effectiveIsBlind || !hasUserGrade
-                                ? 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                                : actualTier
-                                ? 'bg-emerald-950/95 text-white border border-emerald-400'
-                                : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                            }`}
-                            title={
-                              effectiveIsBlind
-                                ? '17Lands grade hidden in Grading Mode'
-                                : !hasUserGrade
-                                ? 'Rate the card to see how you compare'
-                                : actualTier
-                                ? `17Lands Grade: ${actualTier}`
-                                : '17Lands data is available approximately 2 weeks after release'
-                            }
-                          >
-                            <span
-                              className={`text-[8px] uppercase tracking-wider font-extrabold ${
-                                effectiveIsBlind || !hasUserGrade
-                                  ? 'text-slate-500'
-                                  : actualTier
-                                  ? 'text-emerald-300'
-                                  : 'text-slate-500'
-                              }`}
-                            >
-                              17L
-                            </span>
-                            <span
-                              className={`text-[11px] font-black ${
-                                effectiveIsBlind || !hasUserGrade
-                                  ? 'text-slate-400'
-                                  : actualTier
-                                  ? 'text-emerald-200'
-                                  : 'text-amber-500/80'
-                              }`}
-                            >
-                              {effectiveIsBlind || !hasUserGrade ? '—' : actualTier || 'TBD'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0">
-                    <span className="capitalize">{selectedCardForModal.rarity}</span>
-                    <span>•</span>
-                    <span>CMC {selectedCardForModal.cmc}</span>
-                  </div>
-                </div>
-
                 <CardObfuscator
                   card={selectedCardForModal}
                   obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
                   size="lg"
                 />
+
+                {/* Under Card Pic: Set abbr / rarity / cost & Tactical Tags */}
+                <div className="w-[305px] max-w-full mt-2.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {selectedCardForModal.set.toUpperCase()} #{selectedCardForModal.collector_number} • <span className="capitalize font-normal text-slate-500 dark:text-slate-400">{selectedCardForModal.rarity}</span>
+                    </span>
+                    <span>CMC {selectedCardForModal.cmc}</span>
+                  </div>
+
+                  {/* Tactical Tags: Removal Spell, Combat Trick, Instant Speed */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {selectedCardForModal.is_combat_trick && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-500/40 font-bold flex items-center gap-1">
+                        <Swords className="w-3 h-3" />
+                        Combat Trick
+                      </span>
+                    )}
+                    {selectedCardForModal.is_removal && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-500/40 font-bold flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        Removal Spell
+                      </span>
+                    )}
+                    {selectedCardForModal.is_instant_speed && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-lg bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-500/40 font-bold">
+                        ⚡ Instant Speed
+                      </span>
+                    )}
+                    {selectedCardForModal.archetype_tag && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-lg bg-violet-100 text-violet-800 dark:bg-violet-950/60 border border-violet-300 dark:border-violet-500/40 font-bold">
+                        🛡️ {selectedCardForModal.archetype_tag}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Right Column: Full Details, Interactive Grading, 17Lands Comparison & Rules */}
@@ -1028,9 +975,8 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   {onSaveEvaluation && (
                     <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5" title="Assign draft evaluation tier: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5">
-                          <Award className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                          <span>Assign Card Grade:</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300" title="Assign draft evaluation tier: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5">
+                          Grade Card:
                         </span>
                         {activeCardEval ? (
                           <span className="font-mono text-xs font-bold text-violet-700 dark:text-cyan-300">
@@ -1097,32 +1043,6 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                     <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-sans leading-relaxed whitespace-pre-line">
                       {selectedCardForModal.oracle_text || 'No oracle rules text.'}
                     </p>
-                  </div>
-
-                  {/* Tactical Tags */}
-                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                    {selectedCardForModal.is_combat_trick && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-500/40 font-bold flex items-center gap-1">
-                        <Swords className="w-3.5 h-3.5" />
-                        Combat Trick
-                      </span>
-                    )}
-                    {selectedCardForModal.is_removal && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-xl bg-rose-100 text-rose-800 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-500/40 font-bold flex items-center gap-1">
-                        <Zap className="w-3.5 h-3.5" />
-                        Removal Spell
-                      </span>
-                    )}
-                    {selectedCardForModal.is_instant_speed && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-xl bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-500/40 font-bold">
-                        ⚡ Instant Speed
-                      </span>
-                    )}
-                    {selectedCardForModal.archetype_tag && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-xl bg-violet-100 text-violet-800 dark:bg-violet-950/60 border border-violet-300 dark:border-violet-500/40 font-bold">
-                        🛡️ {selectedCardForModal.archetype_tag}
-                      </span>
-                    )}
                   </div>
                 </div>
 

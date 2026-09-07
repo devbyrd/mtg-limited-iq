@@ -398,60 +398,11 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
         <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-5 p-5 sm:p-6 overflow-hidden">
           {/* Left: Card Visual (Fixed width column) */}
           <div className="w-full md:w-[320px] lg:w-[360px] shrink-0 flex flex-col items-center justify-start gap-2">
-            <div className="w-full flex items-center justify-between gap-2 px-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {(() => {
-                  const actualTier: GradeTier | null = (landData && typeof landData.win_rate === 'number' && landData.win_rate > 0)
-                    ? ((landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate))
-                    : null;
-                  const hasUserGrade = Boolean(currentEval?.userGrade);
-                  const lsvRating = getLsvRatingForCard(currentCard);
-
-                  return (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {/* Me */}
-                      <div className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono" title="Your assigned grade">
-                        <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">Me</span>
-                        <span className="text-[11px] font-black">{hasUserGrade ? currentEval!.userGrade : '—'}</span>
-                      </div>
-
-                      {/* LSV */}
-                      {showLsv && (
-                        <div
-                          className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono"
-                          title={!hasUserGrade ? 'Rate the card to see how you compare' : (isBlindGrading ? 'LSV grade hidden in grading mode' : `LSV Grade: ${lsvRating.grade} (${lsvRating.score.toFixed(1)}/5.0)`)}
-                        >
-                          <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
-                          <span className="text-[11px] font-black text-amber-200">{!hasUserGrade || isBlindGrading ? '—' : lsvRating.grade}</span>
-                        </div>
-                      )}
-
-                      {/* 17L */}
-                      {show17L && (
-                        <div
-                          className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
-                            actualTier
-                              ? 'bg-emerald-950/95 text-white border border-emerald-400'
-                              : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                          }`}
-                          title={!hasUserGrade ? 'Rate the card to see how you compare' : (actualTier ? (isBlindGrading ? '17Lands grade (hidden in grading mode)' : `17Lands: ${actualTier}`) : '17Lands data syncing')}
-                        >
-                          <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
-                          <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                            {!hasUserGrade || isBlindGrading ? '—' : (actualTier || 'TBD')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-              <div className="flex items-center gap-1.5 text-xs font-mono text-violet-700 dark:text-cyan-300 shrink-0">
-                <span className="bg-slate-100 dark:bg-[#050818] px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">
-                  #{currentCard.collector_number}
-                </span>
-                <span className="capitalize text-slate-500 dark:text-slate-400">{currentCard.rarity}</span>
-              </div>
+            <div className="w-full flex items-center justify-between gap-2 px-1 text-xs font-mono text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                #{currentCard.collector_number} • <span className="capitalize font-normal text-slate-500 dark:text-slate-400">{currentCard.rarity}</span>
+              </span>
+              <span>CMC {currentCard.cmc}</span>
             </div>
 
             <CardObfuscator

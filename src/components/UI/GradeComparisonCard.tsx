@@ -143,14 +143,9 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
       <div className={`grid gap-3 ${visibleColumnsCount === 3 ? 'grid-cols-1 sm:grid-cols-3' : visibleColumnsCount === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {/* 1. ME Column (Always Visible) */}
         <div className="p-3 rounded-xl bg-violet-50/60 dark:bg-violet-950/25 border-2 border-violet-300 dark:border-violet-500/40 space-y-1 shadow-xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-violet-800 dark:text-violet-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
-              <span>Me</span>
-            </div>
-            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200 border border-violet-300 dark:border-violet-700/60">
-              YOU
-            </span>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-violet-800 dark:text-violet-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+            <span>You</span>
           </div>
 
           <div className="flex items-baseline gap-2 pt-0.5">
@@ -177,14 +172,9 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
         {/* 2. LSV Column (Togglable) */}
         {showLsv && (
           <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/25 border-2 border-amber-300 dark:border-amber-500/40 space-y-1 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                <span>LSV</span>
-              </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60">
-                LSV
-              </span>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              <span>LSV</span>
             </div>
 
             <div className="flex items-baseline gap-2 pt-0.5">
@@ -226,14 +216,9 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
         {/* 3. 17L Column (Togglable) */}
         {show17L && (
           <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/25 border-2 border-emerald-400 dark:border-emerald-500/50 space-y-1 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span>17L</span>
-              </div>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/60">
-                17LANDS
-              </span>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>17Lands</span>
             </div>
 
             <div className="flex items-baseline gap-2 pt-0.5">
@@ -269,44 +254,6 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
             </div>
           </div>
         )}
-      </div>
-
-      {/* Visual Tier Calibration Track */}
-      <div className="space-y-1.5 pt-1">
-        <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
-          <span>Tier Spectrum Alignment</span>
-          <span>A+ (Bomb) → F (Unplayable)</span>
-        </div>
-
-        <div className="grid grid-cols-11 gap-1 p-1 bg-slate-100 dark:bg-[#090e24] rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-          {GRADE_TIERS.map((tier, idx) => {
-            const isUser = userIndex === idx;
-            const isLsv = Boolean(userGrade) && showLsv && !isBlindGrading && lsvIndex === idx;
-            const isActual = Boolean(userGrade) && show17L && !isBlindGrading && actualIndex === idx;
-
-            return (
-              <div
-                key={tier}
-                className={`py-1 rounded-lg text-[10px] font-mono font-bold transition-all relative flex flex-col items-center justify-center ${
-                  isUser
-                    ? 'bg-violet-600 text-white font-black shadow-md ring-2 ring-violet-400'
-                    : isActual
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/30 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-400'
-                    : isLsv
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/30 dark:text-amber-200 border border-amber-300 dark:border-amber-400'
-                    : 'bg-white dark:bg-[#050818] text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-800/60'
-                }`}
-              >
-                <span>{tier}</span>
-                <div className="flex items-center gap-0.5 text-[7px] font-mono uppercase font-black">
-                  {isUser && <span className="text-violet-100">Me</span>}
-                  {isLsv && <span className="text-amber-800 dark:text-amber-300">LSV</span>}
-                  {isActual && <span className="text-emerald-800 dark:text-emerald-300">17L</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
