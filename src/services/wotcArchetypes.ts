@@ -236,7 +236,7 @@ const SET_WOTC_ARCHETYPES: Record<string, Record<string, { name: string; headlin
     GU: {
       name: 'Quandrix College (GU)',
       headline: 'The College of Numerology • Fractal Tokens & 8+ Land Scale',
-      description: 'Quandrix manipulates the mathematical foundations of reality. The archetype ramps to eight lands and generates Fractal tokens with variable +1/+1 counters that grow exponentially.',
+      description: 'Quandrix manipulates the mathematical patterns of nature and the multiverse. The archetype ramps to eight lands and generates Fractal tokens with variable +1/+1 counters that grow exponentially.',
       mechanics: ['Fractal Tokens', '8+ Lands Scale', 'Mana Ramp & Math'],
     },
   },

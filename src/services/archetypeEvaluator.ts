@@ -15,7 +15,7 @@ export interface ColorStrength {
   topCommons: { card: Card; eval: UserCardEvaluation }[];
   topUncommons: { card: Card; eval: UserCardEvaluation }[];
   gradeDistribution: Record<GradeTier, number>;
-  // 17Lands Empirical Reality (when data is released)
+  // 17Lands Data (when data is released)
   seventeenLandsAvgWinRate?: number;
   seventeenLandsRank?: number;
   seventeenLandsGrade?: GradeTier;
@@ -39,7 +39,7 @@ export interface ArchetypeStrength {
   keyPicks: { card: Card; eval: UserCardEvaluation }[];
   totalSupportCards: number;
   isDevelopedForSet: boolean;
-  // 17Lands Empirical Reality (when data is released)
+  // 17Lands Data (when data is released)
   seventeenLandsWinRate?: number;
   seventeenLandsTier?: 'S' | 'A' | 'B' | 'C' | 'D';
   seventeenLandsRank?: number;
@@ -314,7 +314,7 @@ export function calculateColorRankings(
   // Compute rank delta (User rank vs 17Lands rank) only for colors you've actually rated
   results.forEach((c, userIdx) => {
     if (c.seventeenLandsRank !== undefined && c.ratedCards > 0) {
-      c.rankDelta = c.seventeenLandsRank - (userIdx + 1); // e.g. you picked #1, reality is #3 -> delta +2
+      c.rankDelta = c.seventeenLandsRank - (userIdx + 1); // e.g. you picked #1, 17Lands is #3 -> delta +2
     }
   });
 
@@ -411,7 +411,7 @@ export function calculateArchetypeRankings(
     else if (powerScore >= 2.4) tier = 'C';
     else tier = 'D';
 
-    // 17Lands Real Empirical Win Rate
+    // 17Lands Win Rate
     let seventeenLandsWinRate: number | undefined = undefined;
     let seventeenLandsTier: 'S' | 'A' | 'B' | 'C' | 'D' | undefined = undefined;
 
@@ -632,7 +632,7 @@ export function generateSetMetaSummaryMarkdown(report: SetSynthesisReport): stri
   lines.push(`**Tiers:**  ${chainGrades}\n`);
 
   report.colorRankings.forEach((col, idx) => {
-    const seventeenStr = col.seventeenLandsAvgWinRate !== undefined ? ` • 17Lands Real: ${(col.seventeenLandsAvgWinRate * 100).toFixed(1)}% WR (#${col.seventeenLandsRank})` : '';
+    const seventeenStr = col.seventeenLandsAvgWinRate !== undefined ? ` • 17Lands: ${(col.seventeenLandsAvgWinRate * 100).toFixed(1)}% WR (#${col.seventeenLandsRank})` : '';
     lines.push(`${idx + 1}. **${col.name}** — Grade **${col.letterGrade}** (Your Score: ${col.averageScore.toFixed(2)}) • ${col.bombs.length} Bombs, ${col.topCommons.length} Key Commons${seventeenStr}`);
   });
 

@@ -19,6 +19,7 @@ import { QuickRateModal } from './QuickRateModal';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
 import { ArchetypeForecastView } from './ArchetypeForecastView';
 import { MethodologyGuideView } from './MethodologyGuideView';
+import { SimilarCardsModal } from './SimilarCardsModal';
 import { Trophy, Award, Sparkles, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2, Target } from 'lucide-react';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
@@ -85,6 +86,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
   const [comparisonSelectedColor, setComparisonSelectedColor] = useState<string>('ALL');
   const [comparisonVerdictFilter, setComparisonVerdictFilter] = useState<string>('ALL');
   const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null);
+  const [cardForSimilarModal, setCardForSimilarModal] = useState<Card | null>(null);
   const [cardListSortBy, setCardListSortBy] = useState<'number' | 'name' | 'color' | 'rarity' | 'winrate'>('number');
   const [comparisonSortBy, setComparisonSortBy] = useState<'number' | 'delta_desc' | 'delta_asc' | 'winrate' | 'name'>('number');
   const [showMathExplainer, setShowMathExplainer] = useState<boolean>(false);
@@ -295,8 +297,8 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
 
       if (userEval && actualTier) {
         const userIndex = gradeTierToIndex(userEval.userGrade);
-        const realityIndex = gradeTierToIndex(actualTier);
-        tierGap = realityIndex - userIndex;
+        const seventeenIndex = gradeTierToIndex(actualTier);
+        tierGap = seventeenIndex - userIndex;
       }
 
       return {
@@ -785,9 +787,22 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                             );
                           })()}
                         </div>
-                        <span className="text-[10px] font-mono text-violet-700 dark:text-cyan-300 font-bold shrink-0">
-                          #{card.collector_number}
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCardForSimilarModal(card);
+                            }}
+                            className="p-1 rounded-md text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                            title="Find similar cards from past sets to project rating"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                          </button>
+                          <span className="text-[10px] font-mono text-violet-700 dark:text-cyan-300 font-bold">
+                            #{card.collector_number}
+                          </span>
+                        </div>
                       </div>
 
                       <CardObfuscator
@@ -966,7 +981,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
         />
       )}
 
-      {/* SUBTAB 3: In-Depth Grade vs Reality Analytics */}
+      {/* SUBTAB 3: In-Depth Grade vs 17Lands Analytics */}
       {activeSubTab === 'calibration' && (
         !effective17LandsData ? (
           <div className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 text-center space-y-4 shadow-xs max-w-xl mx-auto my-6">
@@ -1131,7 +1146,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                         Every grade is indexed across the 11-tier spectrum: <code className="font-mono text-[11px] text-violet-700 dark:text-cyan-300">A+ (0), A (1), A- (2) ... F (10)</code>.
                       </p>
                       <div className="p-2.5 rounded bg-slate-100 dark:bg-[#050818] font-mono text-[11px] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-center font-bold">
-                        Δ = Index(17Lands Reality) - Index(Your Grade)
+                        Δ = Index(17Lands Grade) - Index(Your Grade)
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         • Δ &gt; 0: Overrated (Optimistic read / Trap)<br />
@@ -1274,7 +1289,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                     Full 11-Tier Grade Distribution Spectrum (All Tiers A+ to F)
                   </h3>
                 </div>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Your Curve vs 17Lands Reality</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Your Curve vs 17Lands</span>
               </div>
 
               <div className="space-y-1.5">
@@ -1520,11 +1535,24 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           #{row.card.collector_number}
                         </td>
                         <td className="py-2 px-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-cyan-300 transition-colors">{row.card.name}</span>
-                            {row.card.mana_cost && (
-                              <ManaCostRenderer manaCost={row.card.mana_cost} size="xs" />
-                            )}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-cyan-300 transition-colors">{row.card.name}</span>
+                              {row.card.mana_cost && (
+                                <ManaCostRenderer manaCost={row.card.mana_cost} size="xs" />
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCardForSimilarModal(row.card);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer"
+                              title="Find similar cards from past sets to project rating"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                            </button>
                           </div>
                         </td>
                         <td className="py-2 px-3 capitalize font-mono text-slate-500 dark:text-slate-400">
@@ -1730,6 +1758,19 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
           ratedCount={ratedCountInSet}
           onConfirmClear={(code) => {
             onClearEvaluationsForSet(code);
+          }}
+        />
+      )}
+
+      {/* Similar Cards & Historical Comps Modal */}
+      {cardForSimilarModal && (
+        <SimilarCardsModal
+          isOpen={Boolean(cardForSimilarModal)}
+          onClose={() => setCardForSimilarModal(null)}
+          targetCard={cardForSimilarModal}
+          currentGrade={userEvaluations[`${cardForSimilarModal.set.toLowerCase()}_${cardForSimilarModal.name.toLowerCase()}`]?.userGrade}
+          onAdoptGrade={(target, grade) => {
+            handleQuickGrade(target, grade);
           }}
         />
       )}

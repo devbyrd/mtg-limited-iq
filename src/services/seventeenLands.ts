@@ -407,7 +407,7 @@ export function accuracyToEvaluatorGrade(accuracyPercent: number): {
       grade: 'C',
       gpa: 2.0,
       title: 'Baseline Drafter',
-      description: 'Standard curve baseline. High variance between initial impressions and empirical reality.',
+      description: 'Standard curve baseline. High variance between initial impressions and 17Lands data.',
     };
   }
   if (accuracyPercent >= 52) {
@@ -434,7 +434,7 @@ export function accuracyToEvaluatorGrade(accuracyPercent: number): {
   };
 }
 
-// Calculate calibration comparison between user grades and 17Lands reality
+// Calculate calibration comparison between user grades and 17Lands data
 export function calculateSetCalibration(
   cards: Card[],
   userEvaluations: Record<string, UserCardEvaluation>,
@@ -485,12 +485,12 @@ export function calculateSetCalibration(
 
     totalRatedWith17Lands += 1;
     const userIndex = gradeTierToIndex(userEval.userGrade);
-    const realityTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
-    const realityIndex = gradeTierToIndex(realityTier);
+    const seventeenTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
+    const seventeenIndex = gradeTierToIndex(seventeenTier);
 
-    // Delta: positive means user gave higher grade than reality (overrated), negative means user gave lower grade (underrated)
-    // E.g. user gave A (idx 1), reality is A- (idx 2) -> tierGap = 2 - 1 = +1 step over
-    const tierGap = realityIndex - userIndex;
+    // Delta: positive means user gave higher grade than 17Lands (overrated), negative means user gave lower grade (underrated)
+    // E.g. user gave A (idx 1), 17Lands is A- (idx 2) -> tierGap = 2 - 1 = +1 step over
+    const tierGap = seventeenIndex - userIndex;
     totalDelta += tierGap;
 
     let status: CardEvaluationComparison['status'] = 'exact';
@@ -630,10 +630,10 @@ export function calculateColorAccuracyAnalytics(
       if (!landData || typeof landData.win_rate !== 'number') return;
 
       const userIndex = gradeTierToIndex(evalData.userGrade);
-      const realityTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
-      const realityIndex = gradeTierToIndex(realityTier);
+      const seventeenTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
+      const seventeenIndex = gradeTierToIndex(seventeenTier);
 
-      const delta = realityIndex - userIndex;
+      const delta = seventeenIndex - userIndex;
       totalDelta += delta;
       ratedCount += 1;
 
@@ -719,10 +719,10 @@ export function calculateRarityAccuracyAnalytics(
       if (!landData || typeof landData.win_rate !== 'number') return;
 
       const userIndex = gradeTierToIndex(evalData.userGrade);
-      const realityTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
-      const realityIndex = gradeTierToIndex(realityTier);
+      const seventeenTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
+      const seventeenIndex = gradeTierToIndex(seventeenTier);
 
-      const delta = realityIndex - userIndex;
+      const delta = seventeenIndex - userIndex;
       totalDelta += delta;
       ratedCount += 1;
 
@@ -789,8 +789,8 @@ export function calculateGradeDistribution(
 
       const landData = has17Lands ? landsData?.cards[card.name] : undefined;
       if (landData && typeof landData.win_rate === 'number') {
-        const realityTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
-        if (realityTier === tier) {
+        const seventeenTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
+        if (seventeenTier === tier) {
           actualCount += 1;
         }
       }

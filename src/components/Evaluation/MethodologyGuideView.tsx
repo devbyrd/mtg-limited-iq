@@ -98,7 +98,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
             </h2>
           </div>
           <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-            Test any evaluation against empirical 17Lands reality in real-time
+            Test any evaluation against 17Lands data in real-time
           </span>
         </div>
 
@@ -392,6 +392,108 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
         </div>
       </div>
 
+      {/* 4. Card Similarity Engine & Historical Comps Methodology */}
+      <div className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-500" />
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-heading">
+              Card Similarity Engine & Historical Precedents ("Comps")
+            </h2>
+          </div>
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+            Algorithmic Pre-Release Benchmarking
+          </span>
+        </div>
+
+        <div className="space-y-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p>
+            The greatest hurdle in evaluating cards for a new or unreleased set (like pre-releases or spoiler seasons) is the <strong>cold-start problem</strong>: there are zero games logged on 17Lands.
+          </p>
+          <p>
+            To solve this, our <strong>Similarity Engine</strong> queries hundreds of thousands of historical draft records across modern premier booster formats (such as <em>Bloomburrow</em>, <em>Outlaws of Thunder Junction</em>, <em>Wilds of Eldraine</em>, <em>March of the Machine</em>, <em>Kamigawa: Neon Dynasty</em>, and <em>Strixhaven</em>). By analyzing a new card's rules text, mana value, and typing, it surfaces functionally comparable cards and projects what the new card's draft grade <strong>MIGHT</strong> look like in practice.
+          </p>
+        </div>
+
+        {/* 4 Pillars of Similarity Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <div className="p-3.5 rounded-2xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800/60 space-y-1.5">
+            <div className="flex items-center justify-between font-bold text-violet-900 dark:text-violet-300">
+              <span>1. Type Match</span>
+              <span className="px-1.5 py-0.5 rounded bg-violet-200/60 dark:bg-violet-900/60 text-[10px]">25 Pts</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+              Creatures match creatures; instants match instants. Ensures combat tricks and removal aren't conflated.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800/60 space-y-1.5">
+            <div className="flex items-center justify-between font-bold text-cyan-900 dark:text-cyan-300">
+              <span>2. CMC Proximity</span>
+              <span className="px-1.5 py-0.5 rounded bg-cyan-200/60 dark:bg-cyan-900/60 text-[10px]">25 Pts</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+              Exact mana value receives full points; ±1 CMC receives partial points. Evaluates curve efficiency.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
+            <div className="flex items-center justify-between font-bold text-amber-900 dark:text-amber-300">
+              <span>3. Statline Ratio</span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 text-[10px]">15 Pts</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+              For creatures, evaluates power and toughness body efficiency (e.g. 2/2 for 2 vs 3/1 for 2).
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
+            <div className="flex items-center justify-between font-bold text-emerald-900 dark:text-emerald-300">
+              <span>4. Oracle Overlap</span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-[10px]">35 Pts</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+              Tokenized Jaccard similarity of rules text, identifying removal, card draw, tokens, counters, and keywords.
+            </p>
+          </div>
+        </div>
+
+        {/* How Consensus is Calculated */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+          <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+            <Scale className="w-4 h-4 text-violet-600 dark:text-cyan-400" />
+            <span>How the Historical Consensus ("MIGHT" Grade) is Projected</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3 rounded-xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800 space-y-1">
+              <strong className="text-slate-900 dark:text-white block font-mono">1. Scryfall Query Execution:</strong>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                Constructs a targeted query excluding reprints and non-booster cards across 14 modern premier draft sets.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800 space-y-1">
+              <strong className="text-slate-900 dark:text-white block font-mono">2. 17Lands Cross-Reference:</strong>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                Pulls empirical Game-In-Hand Win Rates (GIH WR) and ALSA values from our IndexedDB cache for each matched candidate.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800 space-y-1">
+              <strong className="text-slate-900 dark:text-white block font-mono">3. Weighted Mean Projection:</strong>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                Averages the win rates of the top comps and maps the result to our standard 11-tier letter grade system (e.g. 57.8% &rarr; Tier B+).
+              </p>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-[#1a140a] border border-amber-200 dark:border-amber-500/30 text-amber-900 dark:text-amber-300 text-[11px] leading-relaxed">
+            <strong>Example in Practice:</strong> A 2-mana black removal spell with minor downside will surface historical cards like <em>Shoot the Sheriff</em> (58.2% WR, B+), <em>Go for the Throat</em> (59.1% WR, A-), and <em>Flunk</em> (55.6% WR, B-). The engine computes a <strong>Consensus Rating of B+ (57.6% Avg WR)</strong> with a range of B- to A-, giving you an immediate, data-backed baseline before you draft a single game.
+          </div>
+        </div>
+      </div>
+
       {/* 17Lands Metrics Deep Dive */}
       <div className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs space-y-4">
         <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -671,7 +773,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               Step Delta (Δ) & 1-Step Tolerance Rule
             </h4>
             <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-[#090e24] font-mono text-[11px] text-slate-900 dark:text-white text-center font-bold border border-slate-200 dark:border-slate-800">
-              Δ = Index(17Lands Reality) - Index(Your Grade)
+              Δ = Index(17Lands Grade) - Index(Your Grade)
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
               In Limited draft evaluation, being within <strong>±1 sub-tier</strong> (e.g., A to A-, B- to C+) represents high-level format mastery. Thus:
@@ -683,11 +785,11 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               </div>
               <div className="flex justify-between text-amber-600 dark:text-amber-400">
                 <span>|Δ| = 2 (Minor Discrepancy):</span>
-                <strong>50% Credit (0.5 Points)</strong>
+                <strong>50% Credit (Partial Read)</strong>
               </div>
               <div className="flex justify-between text-rose-600 dark:text-rose-400">
-                <span>|Δ| &ge; 3 (Major Trap / Sleeper):</span>
-                <strong>0% Credit (0 Points)</strong>
+                <span>|Δ| &ge; 3 (Major Divergence):</span>
+                <strong>0% Credit (Trap / Sleeper Miss)</strong>
               </div>
             </div>
           </div>
@@ -744,7 +846,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               Meta Calibration Alignment Score (%)
             </h4>
             <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-[#090e24] font-mono text-[11px] text-slate-900 dark:text-white text-center font-bold border border-slate-200 dark:border-slate-800">
-              Alignment = max(0, 100 - &sum; |Predicted Rank - 17Lands Real Rank| &times; 3.5)
+              Alignment = max(0, 100 - &sum; |Predicted Rank - 17Lands Rank| &times; 3.5)
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
               Measures how accurately your predicted top color pairs and 10 guild rankings matched empirical Arena win rates.

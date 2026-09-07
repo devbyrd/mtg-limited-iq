@@ -27,7 +27,7 @@
 ### 3. Evaluation Hub & Metagame Synthesis
 - **Personal Card Grading**: Assign letter tiers (`S, A+, A, A-, B+, B, B-, C+, C, C-, D+, D, D-, F`) with notes.
 - **Rapid Grader**: Fast keyboard-driven grading flow (`A-F` keys) with smooth transition animations.
-- **17Lands Reality Calibration**: Direct integration with empirical 17Lands Game-in-Hand (GIH) win rates and pick priority.
+- **17Lands Data Comparison**: Direct integration with empirical 17Lands Game-in-Hand (GIH) win rates and pick priority.
 - **Side-by-Side Mode**: Compare personal intuition against empirical win rates to discover personal traps and sleeper cards.
 - **Archetype Forecast**: Monocolor and 2-color archetype rankings, speed indicators, and draft reads with creator-style synthesis reports.
 - **Unreleased Set Guardrails**: Automatic TBD indicators for unreleased sets awaiting initial 17Lands match telemetry.

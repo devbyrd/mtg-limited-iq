@@ -58,7 +58,7 @@ const mockEvaluations: Record<string, UserCardEvaluation> = {
     cardId: 'blb-5',
     cardName: 'Seedgale Foster',
     setCode: 'BLB',
-    userGrade: 'A', // Overrated: reality is C
+    userGrade: 'A', // Overrated: 17Lands is C
     userScore: 4.7,
     pickPriority: '1st Pick Bomb',
     updatedAt: new Date().toISOString(),
@@ -67,7 +67,7 @@ const mockEvaluations: Record<string, UserCardEvaluation> = {
     cardId: 'blb-3',
     cardName: 'Might of the Meek',
     setCode: 'BLB',
-    userGrade: 'D', // Underrated: reality is B
+    userGrade: 'D', // Underrated: 17Lands is B
     userScore: 1.5,
     pickPriority: 'Late Filler',
     updatedAt: new Date().toISOString(),

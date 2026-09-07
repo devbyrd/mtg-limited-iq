@@ -145,7 +145,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
               ) : (
                 <span className="text-xs font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 border border-amber-300 dark:border-amber-500/40 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  17Lands Reality: TBD (Unreleased Set)
+                  17Lands Data: TBD (Unreleased Set)
                 </span>
               )}
 
@@ -274,7 +274,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
         )
       )}
 
-      {/* 3. Executive KPI Highlights Grid (Your Predictions + 17Lands Real Comparison) */}
+      {/* 3. Executive KPI Highlights Grid (Your Predictions + 17Lands Comparison) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Top Color Card */}
         <div
@@ -473,7 +473,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Monocolor Power Hierarchy (Your Predictions vs 17Lands Reality) */}
+      {/* 4. Monocolor Power Hierarchy (Your Predictions vs 17Lands Data) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading flex items-center gap-2">
@@ -563,12 +563,12 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             </div>
           </div>
 
-          {/* Secondary Row: 17Lands Arena Reality (if available) */}
+          {/* Secondary Row: 17Lands Arena Win Rates (if available) */}
           {!isBlindGrading && (
             report.has17LandsData && sorted17Colors.length > 0 ? (
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
                 <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <span>17Lands Arena Reality</span>
+                  <span>17Lands Win Rates</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">• Empirical GIH Win Rate Hierarchy</span>
                 </div>
 
@@ -616,7 +616,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             ) : (
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
                 <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <span>17Lands Arena Reality</span>
+                  <span>17Lands Win Rates</span>
                   <span className="text-amber-600 dark:text-amber-400 font-bold">• Empirical GIH Win Rate Hierarchy: TBD (Unreleased Set)</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#050818]/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 font-mono flex items-center gap-2">
@@ -833,7 +833,7 @@ Total evaluation points (${(col.averageScore * col.ratedCards).toFixed(1)}) ÷ $
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   {!isBlindGrading && report.has17LandsData && arch.seventeenLandsWinRate !== undefined ? (
                     <>
-                      {/* 🌟 PROMINENT 17LANDS EMPIRICAL REALITY BADGE */}
+                      {/* 17Lands Win Rate Badge */}
                       <div
                         className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-400/60 text-emerald-800 dark:text-emerald-300 shadow-xs text-right"
                       >
@@ -841,7 +841,7 @@ Total evaluation points (${(col.averageScore * col.ratedCards).toFixed(1)}) ÷ $
                           className="text-[9px] uppercase font-mono font-bold text-emerald-600 dark:text-emerald-400 tracking-wider text-right"
                           title={`17Lands Empirical Archetype Win Rate Formula:\n30% Gold Signpost WR + 35% ${arch.color1Name} WR + 35% ${arch.color2Name} WR = ${(arch.seventeenLandsWinRate * 100).toFixed(1)}% WR`}
                         >
-                          17Lands Real
+                          17Lands
                         </div>
                         <div className="text-sm font-black font-mono text-slate-900 dark:text-white flex items-center gap-1.5 justify-end">
                           <span>Tier {arch.seventeenLandsTier}</span>
@@ -882,7 +882,7 @@ Total evaluation points (${(col.averageScore * col.ratedCards).toFixed(1)}) ÷ $
                 </div>
               </div>
 
-              {/* 17Lands Reality Comparison Strip */}
+              {/* 17Lands Comparison Strip */}
               {!isBlindGrading && (
                 report.has17LandsData && arch.seventeenLandsWinRate !== undefined ? (
                   <div

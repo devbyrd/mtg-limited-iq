@@ -16,7 +16,6 @@ interface CategoryConfig {
   name: string;
   description: string;
   icon: React.ReactNode;
-  tag: string;
 }
 
 const CATEGORY_CONFIGS: CategoryConfig[] = [
@@ -25,63 +24,54 @@ const CATEGORY_CONFIGS: CategoryConfig[] = [
     name: 'Pack 1 Pick 1 (P1P1) Priority',
     description: 'Simulate pack opening decisions and identify highest-equity first picks.',
     icon: <Target className="w-4 h-4 text-amber-400" />,
-    tag: 'Draft Navigation',
   },
   {
     id: 'trap_or_sleeper',
     name: '17Lands Trap vs. Sleeper Detection',
     description: 'Spot overrated traps (low WR, high pick cost) vs late-pack sleeper gems.',
     icon: <AlertTriangle className="w-4 h-4 text-orange-400" />,
-    tag: '17Lands Insights',
   },
   {
     id: 'quadrant_role',
     name: 'Quadrant Theory (Behind & Parity)',
     description: 'Evaluate cards when Behind (stabilization) vs at Parity (stall-breaking).',
     icon: <Scale className="w-4 h-4 text-violet-400" />,
-    tag: 'Card Evaluation',
   },
   {
     id: 'combat_tricks',
     name: 'Combat Tricks & Open Mana',
     description: 'Anticipate opponent blowout tricks and pump spells from open mana.',
     icon: <Swords className="w-4 h-4 text-emerald-400" />,
-    tag: 'Combat Math',
   },
   {
     id: 'instant_speed',
     name: 'Instant vs. Sorcery Speed & Timing',
     description: 'Identify interaction speed to optimize combat lines and double-spelling.',
     icon: <Zap className="w-4 h-4 text-cyan-400" />,
-    tag: 'Speed & Timing',
   },
   {
     id: 'mana_cost_and_splash',
     name: 'Mana Base Math & Splashability',
     description: 'Apply 3-source heuristics to test splash viability without mana screw.',
     icon: <Hash className="w-4 h-4 text-sky-400" />,
-    tag: 'Mana Math',
   },
   {
     id: 'power_toughness',
     name: 'Base Stats & Combat Sizing',
     description: 'Master creature stat lines for planning multi-blocks and damage thresholds.',
     icon: <Shield className="w-4 h-4 text-indigo-400" />,
-    tag: 'Combat Sizing',
   },
   {
     id: 'archetype_engine',
     name: 'Archetype Synergy Engines & Payoffs',
     description: 'Identify signpost engines and archetype enablers with text masked.',
     icon: <Sparkles className="w-4 h-4 text-yellow-300" />,
-    tag: 'Draft Archetypes',
   },
   {
     id: 'card_evaluation',
     name: '17Lands Head-to-Head Duel',
     description: 'Direct 1v1 duel: pick which card achieves a higher Game-In-Hand Win Rate.',
     icon: <GitCompare className="w-4 h-4 text-rose-400" />,
-    tag: '17Lands Reality',
   },
 ];
 
@@ -249,11 +239,6 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
                     )}
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{cat.description}</p>
-                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-violet-700 dark:text-cyan-300 bg-slate-100 dark:bg-[#050818] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800">
-                      {cat.tag}
-                    </span>
-                  </div>
                 </div>
               );
             })}
