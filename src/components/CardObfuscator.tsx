@@ -6,7 +6,7 @@ import { ManaCostRenderer } from './UI/ManaSymbol';
 interface CardObfuscatorProps {
   card: Card;
   obfuscation?: CardObfuscationConfig;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   showDetailsOnHover?: boolean;
   className?: string;
   allowManualPeek?: boolean;
@@ -17,6 +17,7 @@ const SIZE_CLASSES = {
   md: 'w-[245px] h-[342px]',
   lg: 'w-[305px] h-[426px]',
   xl: 'w-[345px] h-[482px]',
+  '2xl': 'w-[340px] h-[474px] sm:w-[410px] sm:h-[572px]',
 };
 
 export const CardObfuscator: React.FC<CardObfuscatorProps> = ({

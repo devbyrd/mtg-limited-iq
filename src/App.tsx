@@ -330,6 +330,7 @@ export const App: React.FC = () => {
             {quizState === 'active' && activeQuestions.length > 0 ? (
               <QuizActive
                 questions={activeQuestions}
+                cards={cards}
                 setCode={currentSet.code}
                 setName={currentSet.name}
                 timerSeconds={activeSettings?.timerSeconds || 0}
