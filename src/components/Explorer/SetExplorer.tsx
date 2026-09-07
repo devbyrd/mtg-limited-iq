@@ -137,7 +137,19 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
       }
 
       if (selectedColor !== 'ALL') {
-        if (selectedColor === 'MULTI' || selectedColor === 'GOLD') {
+        if (selectedColor.startsWith('GOLD_')) {
+          const pairCode = selectedColor.replace('GOLD_', '');
+          const c1 = pairCode[0] as MTGColor;
+          const c2 = pairCode[1] as MTGColor;
+          const colors = c.colors || [];
+          if (colors.length < 2 || !colors.includes(c1) || !colors.includes(c2)) return false;
+        } else if (selectedColor.length === 2 && !['ALL', 'GOLD', 'LANDS', 'MULTI', 'COLORLESS'].includes(selectedColor)) {
+          const c1 = selectedColor[0] as MTGColor;
+          const c2 = selectedColor[1] as MTGColor;
+          const cardIdentity = c.color_identity && c.color_identity.length > 0 ? c.color_identity : (c.colors || []);
+          const fitsIdentity = cardIdentity.every((col) => col === c1 || col === c2);
+          if (!fitsIdentity) return false;
+        } else if (selectedColor === 'MULTI' || selectedColor === 'GOLD') {
           if (c.colors.length <= 1) return false;
         } else if (selectedColor === 'COLORLESS') {
           if (c.colors.length > 0 || c.type_line?.toLowerCase().includes('land')) return false;
@@ -318,6 +330,22 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {/* Mana Color Filter Bar with Official Arena Glow */}
           <ManaColorFilterBar selectedColor={selectedColor} onSelectColor={setSelectedColor} />
+
+          {/* Active Archetype Filter Pill */}
+          {(selectedColor.length === 2 || selectedColor.startsWith('GOLD_')) &&
+            !['ALL', 'GOLD', 'LANDS', 'MULTI', 'COLORLESS'].includes(selectedColor) && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-violet-100 dark:bg-violet-950/70 border border-violet-300 dark:border-violet-700/60 text-violet-800 dark:text-violet-200 shadow-xs">
+                <span>Archetype: {selectedColor.startsWith('GOLD_') ? `Gold ${selectedColor.replace('GOLD_', '')}` : selectedColor}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedColor('ALL')}
+                  className="p-0.5 rounded-md hover:bg-violet-200 dark:hover:bg-violet-800 text-violet-600 dark:text-violet-300 cursor-pointer"
+                  title="Clear Archetype Filter"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
           {/* Rarity Pills */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -781,11 +809,11 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveExplorerTab('cards');
-                        setSelectedColor('ALL');
+                        setSelectedColor(archetype.code.toUpperCase());
                         setSelectedRarity('ALL');
                         setSelectedRole('ALL');
                         setFilterRatedStatus('ALL');
-                        setSearchQuery(`id<=${archetype.code.toLowerCase()}`);
+                        setSearchQuery('');
                       }}
                       className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-violet-50 dark:bg-violet-950/50 hover:bg-violet-100 dark:hover:bg-violet-900/60 text-violet-700 dark:text-cyan-300 border border-violet-200 dark:border-violet-800/50 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
@@ -797,11 +825,11 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveExplorerTab('cards');
-                        setSelectedColor('ALL');
+                        setSelectedColor('GOLD_' + archetype.code.toUpperCase());
                         setSelectedRarity('ALL');
                         setSelectedRole('ALL');
                         setFilterRatedStatus('ALL');
-                        setSearchQuery(`c:${archetype.code.toLowerCase()}`);
+                        setSearchQuery('');
                       }}
                       className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                       title={`Filter to multi-color gold ${archetype.code} cards`}

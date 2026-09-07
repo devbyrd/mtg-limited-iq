@@ -18,6 +18,17 @@ export const ManaColorFilterBar: React.FC<ManaColorFilterBarProps> = ({
   showAllButton = true,
 }) => {
   const handleClick = (colorId: string) => {
+    if (colorId === 'ALL') {
+      onSelectColor('ALL');
+      return;
+    }
+
+    // If currently an archetype or gold pair like 'UB' or 'GOLD_UB'
+    if (selectedColor.length === 2 || selectedColor.startsWith('GOLD_')) {
+      onSelectColor(colorId);
+      return;
+    }
+
     if (selectedColor === colorId || (colorId === 'GOLD' && selectedColor === 'MULTI')) {
       onSelectColor('ALL');
     } else {
@@ -90,7 +101,11 @@ export const ManaColorFilterBar: React.FC<ManaColorFilterBarProps> = ({
 
       <div className="flex items-center gap-1.5 sm:gap-2">
         {COLOR_BUTTONS.map((item) => {
-          const isSelected = selectedColor === item.id || (item.id === 'GOLD' && selectedColor === 'MULTI');
+          const cleanCode = selectedColor.replace('GOLD_', '');
+          const isSelected =
+            selectedColor === item.id ||
+            (item.id === 'GOLD' && (selectedColor === 'MULTI' || selectedColor.startsWith('GOLD'))) ||
+            (cleanCode.length === 2 && (item.id === cleanCode[0] || item.id === cleanCode[1]));
           return (
             <button
               key={item.id}
