@@ -1,0 +1,653 @@
+import React, { useState, useEffect } from 'react';
+import { UserAccount } from '../../types/mtg';
+import { isSupabaseConfigured } from '../../services/supabase';
+import {
+  signInWithOAuth,
+  signInWithMagicLink,
+  signInWithPassword,
+  signUpWithPassword,
+  signOut,
+  updateUserProfile,
+  OAuthProvider,
+} from '../../services/auth';
+import { migrateLocalDataToCloud, getSyncStatus, subscribeSyncStatus, SyncStatus } from '../../services/cloudSync';
+import {
+  X,
+  User,
+  LogOut,
+  Mail,
+  Lock,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Shield,
+  Cloud,
+  RefreshCw,
+  Edit2,
+  Check,
+  Zap,
+  Globe,
+  ArrowRight,
+  Info,
+} from 'lucide-react';
+
+interface AuthModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentUser: UserAccount;
+  onUserChange: (user: UserAccount) => void;
+  onRefreshStats: () => void;
+}
+
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
+  currentUser,
+  onUserChange,
+  onRefreshStats,
+}) => {
+  const isCloudConfigured = isSupabaseConfigured();
+  const isCloudUser = Boolean(currentUser.email && !currentUser.id.startsWith('usr_') && currentUser.id !== 'user_default');
+
+  const [activeTab, setActiveTab] = useState<'oauth' | 'magic_link' | 'password' | 'profile'>(
+    isCloudUser ? 'profile' : 'oauth'
+  );
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+
+  // Form states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState(currentUser.name);
+  const [avatarUrl, setAvatarUrl] = useState(currentUser.avatarUrl || '');
+  const [avatarColor, setAvatarColor] = useState(currentUser.avatarColor || '#8b5cf6');
+
+  // Status & Feedback states
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(getSyncStatus());
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeSyncStatus((s) => setSyncStatus(s));
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDisplayName(currentUser.name);
+      setAvatarUrl(currentUser.avatarUrl || '');
+      setAvatarColor(currentUser.avatarColor || '#8b5cf6');
+      setStatusMessage(null);
+      if (isCloudUser) {
+        setActiveTab('profile');
+      } else {
+        setActiveTab('oauth');
+      }
+    }
+  }, [isOpen, currentUser, isCloudUser]);
+
+  if (!isOpen) return null;
+
+  const handleOAuthSignIn = async (provider: OAuthProvider) => {
+    setIsLoading(true);
+    setStatusMessage(null);
+    const { error } = await signInWithOAuth(provider);
+    setIsLoading(false);
+    if (error) {
+      setStatusMessage({ type: 'error', text: error.message });
+    }
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setIsLoading(true);
+    setStatusMessage(null);
+    const { error } = await signInWithMagicLink(email.trim());
+    setIsLoading(false);
+
+    if (error) {
+      setStatusMessage({ type: 'error', text: error.message });
+    } else {
+      setStatusMessage({
+        type: 'success',
+        text: `Magic login link sent to ${email}! Click the link in your email to sign in.`,
+      });
+      setEmail('');
+    }
+  };
+
+  const handlePasswordAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
+
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    if (authMode === 'signup') {
+      const { user, error } = await signUpWithPassword(email.trim(), password.trim(), displayName.trim());
+      setIsLoading(false);
+      if (error) {
+        setStatusMessage({ type: 'error', text: error.message });
+      } else if (user) {
+        setStatusMessage({
+          type: 'success',
+          text: 'Account created! Please check your email to verify your address.',
+        });
+        onUserChange(user);
+        onRefreshStats();
+      }
+    } else {
+      const { user, error } = await signInWithPassword(email.trim(), password.trim());
+      setIsLoading(false);
+      if (error) {
+        setStatusMessage({ type: 'error', text: error.message });
+      } else if (user) {
+        setStatusMessage({ type: 'success', text: `Welcome back, ${user.name}!` });
+        onUserChange(user);
+        onRefreshStats();
+        setTimeout(() => onClose(), 800);
+      }
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    if (isCloudUser) {
+      const { error } = await updateUserProfile(displayName.trim(), avatarUrl.trim() || undefined);
+      if (error) {
+        setStatusMessage({ type: 'error', text: error.message });
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    const updatedUser: UserAccount = {
+      ...currentUser,
+      name: displayName.trim() || 'Drafter',
+      avatarUrl: avatarUrl.trim() || undefined,
+      avatarColor,
+    };
+    onUserChange(updatedUser);
+    setIsLoading(false);
+    setIsEditingProfile(false);
+    setStatusMessage({ type: 'success', text: 'Profile updated!' });
+    setTimeout(() => setStatusMessage(null), 2500);
+  };
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    await signOut();
+    setIsLoading(false);
+
+    const guestUser: UserAccount = {
+      id: 'user_default',
+      name: 'Guest Drafter',
+      avatarColor: '#8b5cf6',
+      provider: 'local',
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+    onUserChange(guestUser);
+    onRefreshStats();
+    onClose();
+  };
+
+  const handleSyncLocalData = async () => {
+    if (!currentUser.id) return;
+    setIsLoading(true);
+    await migrateLocalDataToCloud(currentUser.id, 'user_default');
+    setIsLoading(false);
+    onRefreshStats();
+    setStatusMessage({ type: 'success', text: 'Local quiz history and card evaluations synced to cloud!' });
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  const AVATAR_COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 dark:bg-[#040711]/90 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-[96vw] max-w-lg bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/90 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-[#060a1d]">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-violet-100 dark:bg-violet-600/20 border border-violet-300 dark:border-violet-500/40 text-violet-700 dark:text-cyan-300">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+                {isCloudUser ? 'Cloud Drafter Account' : 'Drafter Authentication'}
+              </h2>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                {isCloudUser ? 'Manage cloud profile and sync settings' : 'Sign in to sync stats across all your devices'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Status Message Banner */}
+        {statusMessage && (
+          <div
+            className={`px-5 py-3 text-xs flex items-center gap-2 border-b animate-in fade-in duration-150 ${
+              statusMessage.type === 'success'
+                ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
+            }`}
+          >
+            {statusMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            )}
+            <span className="leading-tight">{statusMessage.text}</span>
+          </div>
+        )}
+
+        {/* Configuration Notice (if Supabase env is not yet filled) */}
+        {!isCloudConfigured && (
+          <div className="px-5 py-3 bg-amber-950/30 border-b border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold">Offline / Local Mode Active</span>
+              <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                Connect your free Supabase project keys in <code className="bg-[#050818] px-1 py-0.2 rounded font-mono text-[10px]">.env</code> to activate real multi-device cloud sync and OAuth.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Authenticated Profile View */}
+        {isCloudUser || activeTab === 'profile' ? (
+          <div className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
+            {/* Active User Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  {currentUser.avatarUrl ? (
+                    <img
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.name}
+                      className="w-12 h-12 rounded-xl object-cover border border-violet-500/50 shadow-sm shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg text-white font-heading shadow-sm shrink-0"
+                      style={{ backgroundColor: currentUser.avatarColor || '#8b5cf6' }}
+                    >
+                      {currentUser.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{currentUser.email || 'Local Account'}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] uppercase font-mono font-bold px-1.5 py-0.2 rounded bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-cyan-300 border border-violet-300 dark:border-violet-700/50">
+                        {currentUser.provider}
+                      </span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
+                        <Check className="w-3 h-3" />
+                        Cloud Active
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsEditingProfile(!isEditingProfile)}
+                  className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                  title="Edit display name"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Sync Status Badge */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-violet-600 dark:text-cyan-400" />
+                  Cloud Sync Status:
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                    syncStatus === 'synced'
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40'
+                      : syncStatus === 'syncing'
+                      ? 'bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
+                      : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                  }`}
+                >
+                  {syncStatus === 'synced' && '✓ Synced & Up to Date'}
+                  {syncStatus === 'syncing' && '⟳ Syncing...'}
+                  {syncStatus === 'offline' && '☁ Offline (Saved Locally)'}
+                  {syncStatus === 'local_only' && 'Local Storage Only'}
+                  {syncStatus === 'error' && '⚠ Sync Error'}
+                </span>
+              </div>
+            </div>
+
+            {/* Edit Profile Form */}
+            {isEditingProfile ? (
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070c26] border border-violet-300 dark:border-violet-500/40 space-y-3 animate-in fade-in duration-150">
+                <div className="text-xs font-bold text-slate-900 dark:text-white font-heading">Edit Drafter Profile</div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Display Name</label>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full px-3 py-2 bg-white dark:bg-[#050818] border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-violet-500 dark:focus:border-cyan-400 font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Avatar URL (Optional)</label>
+                  <input
+                    type="text"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 bg-white dark:bg-[#050818] border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-violet-500 dark:focus:border-cyan-400 font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Avatar Color Theme</label>
+                  <div className="flex items-center gap-2 pt-1">
+                    {AVATAR_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setAvatarColor(c)}
+                        className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
+                          avatarColor === c ? 'border-violet-600 dark:border-white scale-110 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={isLoading}
+                    className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Cloud Actions */}
+            <div className="space-y-2">
+              <button
+                onClick={handleSyncLocalData}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-[#050818] hover:bg-slate-200 dark:hover:bg-[#0c1236] border border-slate-300 dark:border-slate-800 hover:border-violet-500 dark:hover:border-cyan-500/40 text-xs font-semibold text-violet-700 dark:text-cyan-300 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-violet-600 dark:text-cyan-400 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>Upload & Sync All Local History to Cloud</span>
+              </button>
+
+              <button
+                onClick={handleSignOut}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-xl bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/60 border border-rose-300 dark:border-rose-500/40 text-xs font-semibold text-rose-800 dark:text-rose-300 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out (Switch to Guest Mode)</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Unauthenticated / Sign-in Tabs */
+          <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+            {/* Tab Navigation */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 rounded-xl gap-1">
+              <button
+                onClick={() => setActiveTab('oauth')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'oauth'
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                OAuth SSO
+              </button>
+              <button
+                onClick={() => setActiveTab('magic_link')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'magic_link'
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Magic Link
+              </button>
+              <button
+                onClick={() => setActiveTab('password')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeTab === 'password'
+                    ? 'bg-violet-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Email & Password
+              </button>
+            </div>
+
+            {/* TAB 1: OAuth Providers */}
+            {activeTab === 'oauth' && (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-400 text-center">
+                  1-Click authentication with zero passwords to remember:
+                </p>
+
+                {/* Google SSO */}
+                <button
+                  onClick={() => handleOAuthSignIn('google')}
+                  disabled={isLoading}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>Continue with Google</span>
+                </button>
+
+                {/* Discord SSO */}
+                <button
+                  onClick={() => handleOAuthSignIn('discord')}
+                  disabled={isLoading}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                  </svg>
+                  <span>Continue with Discord</span>
+                </button>
+
+                {/* Apple SSO */}
+                <button
+                  onClick={() => handleOAuthSignIn('apple')}
+                  disabled={isLoading}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-black hover:bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer border border-slate-700 disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 0.92-2.85-.9.04-2.02.6-2.66 1.34-.56.65-1.06 1.71-.93 2.73 1.01.08 2.05-.48 2.67-1.22z" />
+                  </svg>
+                  <span>Continue with Apple</span>
+                </button>
+
+                {/* GitHub SSO */}
+                <button
+                  onClick={() => handleOAuthSignIn('github')}
+                  disabled={isLoading}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-[#24292e] hover:bg-[#1b1f23] text-white font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer border border-slate-700 disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                  </svg>
+                  <span>Continue with GitHub</span>
+                </button>
+              </div>
+            )}
+
+            {/* TAB 2: Magic Link (Passwordless) */}
+            {activeTab === 'magic_link' && (
+              <form onSubmit={handleMagicLink} className="space-y-3.5">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  Enter your email address and we'll send you an instant login link:
+                </p>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="drafter@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#050818] border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-violet-500 dark:focus:border-cyan-400 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 dark:to-cyan-600 hover:from-violet-500 hover:to-indigo-500 dark:hover:to-cyan-500 text-white font-bold text-xs rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Send Magic Link</span>
+                </button>
+              </form>
+            )}
+
+            {/* TAB 3: Email + Password */}
+            {activeTab === 'password' && (
+              <form onSubmit={handlePasswordAuth} className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-300 uppercase tracking-wider">
+                    {authMode === 'signin' ? 'Sign In With Password' : 'Create Cloud Account'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                    className="text-xs text-violet-700 dark:text-cyan-400 hover:underline cursor-pointer font-semibold"
+                  >
+                    {authMode === 'signin' ? 'Need an account? Sign Up' : 'Have an account? Sign In'}
+                  </button>
+                </div>
+
+                {authMode === 'signup' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Display Name</label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Your Drafter Name"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#050818] border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-violet-500 dark:focus:border-cyan-400 font-medium"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="drafter@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#050818] border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-violet-500 dark:focus:border-cyan-400 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#050818] border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-violet-500 dark:focus:border-cyan-400 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 dark:to-cyan-600 hover:from-violet-500 hover:to-indigo-500 dark:hover:to-cyan-500 text-white font-bold text-xs rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>{authMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                </button>
+              </form>
+            )}
+
+            {/* Guest Mode Footnote */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-cyan-300 font-medium cursor-pointer inline-flex items-center gap-1"
+              >
+                <span>Continue playing as Guest (Stored Locally)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AuthModal;

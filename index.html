@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="https://svgs.scryfall.io/sets/star.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MTG Limited IQ — Draft Drills & Set Mastery</title>
+    <meta name="description" content="MTG Limited IQ — Master Magic: The Gathering Limited formats with card quizzes, draft drills, 17Lands telemetry, and personal set evaluations." />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('mtg_iq_theme');
+          var isDark = saved ? saved === 'dark' : true;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="min-h-screen selection:bg-violet-500 selection:text-white antialiased font-sans">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

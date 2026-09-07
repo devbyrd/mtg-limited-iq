@@ -1,0 +1,205 @@
+import React, { useState } from 'react';
+import { Card, CardObfuscationConfig } from '../types/mtg';
+import { RotateCw, Sparkles, EyeOff } from 'lucide-react';
+import { ManaCostRenderer } from './UI/ManaSymbol';
+
+interface CardObfuscatorProps {
+  card: Card;
+  obfuscation?: CardObfuscationConfig;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  showDetailsOnHover?: boolean;
+  className?: string;
+  allowManualPeek?: boolean;
+}
+
+const SIZE_CLASSES = {
+  sm: 'w-[185px] h-[258px]',
+  md: 'w-[245px] h-[342px]',
+  lg: 'w-[305px] h-[426px]',
+  xl: 'w-[345px] h-[482px]',
+};
+
+export const CardObfuscator: React.FC<CardObfuscatorProps> = ({
+  card,
+  obfuscation = { target: 'none', style: 'blur', isRevealed: false },
+  size = 'lg',
+  className = '',
+}) => {
+  const [faceIndex, setFaceIndex] = useState<number>(0);
+  const [imgLoaded, setImgLoaded] = useState<boolean>(false);
+
+  if (!card) return null;
+
+  // Only true double-faced cards (Transform, Modal DFC) with separate front & back images can be flipped
+  const isTransformCard = Boolean(
+    card?.card_faces &&
+    card.card_faces.length > 1 &&
+    card.card_faces[0]?.image_uris?.normal &&
+    card.card_faces[1]?.image_uris?.normal
+  );
+  const currentFace = isTransformCard && card.card_faces ? card.card_faces[faceIndex] : null;
+
+  // Determine current image uri
+  const imageUri = currentFace?.image_uris?.normal ||
+    card?.image_uris?.normal ||
+    card?.image_uris?.large ||
+    currentFace?.image_uris?.large ||
+    'https://cards.scryfall.io/back.jpg';
+
+  const artCropUri = currentFace?.image_uris?.art_crop ||
+    card.image_uris?.art_crop ||
+    imageUri;
+
+  const isArtOnly = obfuscation.target === 'art_only';
+  const isMasked = obfuscation.target !== 'none' && !obfuscation.isRevealed;
+
+  const getRarityGlow = (rarity: string) => {
+    switch (rarity) {
+      case 'mythic':
+        return 'border-orange-500/80 shadow-[0_0_30px_rgba(255,77,46,0.45)] ring-1 ring-orange-400/40';
+      case 'rare':
+        return 'border-amber-400/80 shadow-[0_0_25px_rgba(251,191,36,0.4)] ring-1 ring-amber-300/30';
+      case 'uncommon':
+        return 'border-cyan-400/70 shadow-[0_0_20px_rgba(6,182,212,0.35)] ring-1 ring-cyan-300/30';
+      default:
+        return 'border-violet-900/40 shadow-md shadow-black/60';
+    }
+  };
+
+  const getMaskStyle = (style: string) => {
+    switch (style) {
+      case 'whiteout':
+        return 'bg-slate-100/95 text-slate-900 border-2 border-dashed border-slate-400 font-mono';
+      case 'blackout':
+        return 'bg-[#050818]/95 text-cyan-200 border border-violet-500/50 font-mono';
+      case 'scratch':
+        return 'backdrop-blur-xl bg-violet-950/85 border border-cyan-400/50 text-cyan-200';
+      default:
+        // Arcane blur
+        return 'backdrop-blur-md bg-[#070b22]/85 border border-violet-400/40 text-violet-200 shadow-inner';
+    }
+  };
+
+  const renderObfuscationOverlay = () => {
+    if (obfuscation.target === 'none' || isArtOnly || obfuscation.isRevealed || !isMasked) {
+      return null;
+    }
+
+    let positionStyles: string = '';
+    let label = obfuscation.customOverlayText || 'HIDDEN';
+
+    switch (obfuscation.target) {
+      case 'mana_cost':
+        positionStyles = 'top-[3.2%] right-[3.8%] w-[42%] h-[6.8%] rounded-sm';
+        label = obfuscation.customOverlayText || '??? Mana';
+        break;
+      case 'name_and_cost':
+        positionStyles = 'top-[3.0%] left-[3.5%] right-[3.5%] w-[93%] h-[7.2%] rounded-sm';
+        label = obfuscation.customOverlayText || '??? [Name & Mana Concealed]';
+        break;
+      case 'type_line':
+        positionStyles = 'top-[54.8%] left-[3.5%] right-[3.5%] w-[93%] h-[6.2%] rounded-sm';
+        label = obfuscation.customOverlayText || '??? [Type Line Concealed]';
+        break;
+      case 'oracle_text':
+        positionStyles = 'top-[62.0%] left-[4.5%] right-[4.5%] w-[91%] bottom-[7.5%] h-[30.5%] rounded-md';
+        label = obfuscation.customOverlayText || '??? [Rules & Ability Text Concealed]';
+        break;
+      case 'power_toughness':
+        positionStyles = 'bottom-[2.8%] right-[3.8%] w-[25%] h-[7.2%] rounded-sm';
+        label = obfuscation.customOverlayText || '? / ?';
+        break;
+    }
+
+    return (
+      <div
+        className={`absolute ${positionStyles} z-20 transition-all duration-300 flex flex-col items-center justify-center p-1 text-center shadow-xl ${getMaskStyle(obfuscation.style)}`}
+      >
+        <span className="text-[11px] font-bold tracking-wider uppercase drop-shadow flex items-center gap-1">
+          <EyeOff className="w-3 h-3 text-cyan-400 animate-pulse" />
+          {label}
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <div className={`relative flex flex-col items-center select-none ${className}`}>
+      {/* Card Outer Container */}
+      <div
+        className={`relative rounded-[16px] overflow-hidden border-2 transition-all duration-300 bg-[#070a1c] card-foil-sheen ${SIZE_CLASSES[size]} ${getRarityGlow(card.rarity)}`}
+      >
+        {/* Loading Spinner */}
+        {!imgLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#050818] text-slate-400">
+            <div className="w-8 h-8 border-3 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* Art Only Mask Mode */}
+        {isArtOnly && !obfuscation.isRevealed ? (
+          <div className="relative w-full h-full flex flex-col bg-[#050818] p-2">
+            <div className="relative w-full h-full rounded-xl overflow-hidden border border-violet-500/40 shadow-inner">
+              <img
+                src={artCropUri}
+                alt={card.name}
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                onLoad={() => setImgLoaded(true)}
+              />
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#050818] via-[#050818]/80 to-transparent p-2 text-center">
+                <span className="text-xs font-bold text-cyan-300 flex items-center justify-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  Recognize this artwork?
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Full Card Art with Mask Overlays */
+          <div className="relative w-full h-full">
+            <img
+              src={imageUri}
+              alt={card.name}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={() => setImgLoaded(true)}
+            />
+
+            {/* Targeted Obfuscation Mask */}
+            {renderObfuscationOverlay()}
+          </div>
+        )}
+
+        {/* Dual Face Flip Control Button (Only for actual two-sided transform/modal cards) */}
+        {isTransformCard && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setImgLoaded(false);
+              setFaceIndex(prev => (prev === 0 ? 1 : 0));
+            }}
+            className="absolute top-2.5 right-2.5 z-30 bg-[#06091d]/90 hover:bg-[#0e1438] border border-violet-400/60 text-cyan-300 p-1.5 rounded-full shadow-xl transition-all cursor-pointer hover:scale-110"
+            title={`Transform card (Showing face ${faceIndex + 1} of 2)`}
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Rarity & Collector Info Sub-label */}
+      <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+        <span className="uppercase font-bold text-cyan-300 bg-[#06091d] px-1.5 py-0.2 rounded border border-violet-500/30">
+          {card.set}
+        </span>
+        <span>•</span>
+        <span className="capitalize text-slate-300">{card.rarity}</span>
+        {obfuscation.isRevealed && card.mana_cost && (
+          <>
+            <span>•</span>
+            <ManaCostRenderer manaCost={card.mana_cost} size="xs" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
