@@ -19,8 +19,7 @@ import { QuickRateModal } from './QuickRateModal';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
 import { ArchetypeForecastView } from './ArchetypeForecastView';
 import { MethodologyGuideView } from './MethodologyGuideView';
-import { SimilarCardsModal } from './SimilarCardsModal';
-import { Trophy, Award, Sparkles, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2, Target } from 'lucide-react';
+import { Trophy, Award, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2, Target } from 'lucide-react';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
@@ -86,7 +85,6 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
   const [comparisonSelectedColor, setComparisonSelectedColor] = useState<string>('ALL');
   const [comparisonVerdictFilter, setComparisonVerdictFilter] = useState<string>('ALL');
   const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null);
-  const [cardForSimilarModal, setCardForSimilarModal] = useState<Card | null>(null);
   const [cardListSortBy, setCardListSortBy] = useState<'number' | 'name' | 'color' | 'rarity' | 'winrate'>('number');
   const [comparisonSortBy, setComparisonSortBy] = useState<'number' | 'delta_desc' | 'delta_asc' | 'winrate' | 'name'>('number');
   const [showMathExplainer, setShowMathExplainer] = useState<boolean>(false);
@@ -738,9 +736,9 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                 >
                   <div className="flex items-start gap-3">
                     <div className="shrink-0 flex flex-col items-start w-[185px]">
-                      {/* Top Bar above card: Grade badge(s) on the top left (stacked left/right), collector number on the right */}
-                      <div className="w-full flex items-center justify-between gap-1 mb-1.5 min-h-[22px]">
-                        <div className="flex items-center gap-1 flex-wrap">
+                      {/* Top Bar above card: Grade badge(s) in a single horizontal non-wrapping row */}
+                      <div className="w-full flex items-center gap-1 mb-1.5 min-h-[22px] overflow-hidden">
+                        <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
                           {(() => {
                             const actualTier: GradeTier | null = landData
                               ? ((landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate))
@@ -749,9 +747,12 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                             const lsvRating = getLsvRatingForCard(card);
 
                             return (
-                              <div className="flex items-center gap-1 flex-wrap">
+                              <>
                                 {/* 1. Me Badge (Always Visible) */}
-                                <div className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono" title="Your assigned grade">
+                                <div
+                                  className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
+                                  title="Your assigned grade"
+                                >
                                   <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">Me</span>
                                   <span className="text-[11px] font-black">{hasUserGrade ? userEval!.userGrade : '—'}</span>
                                 </div>
@@ -759,7 +760,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 {/* 2. LSV Badge (Togglable) */}
                                 {showLsv && (
                                   <div
-                                    className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono"
+                                    className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
                                     title={!hasUserGrade ? 'Rate the card to see how you compare' : (isBlindGrading ? 'LSV Rating (hidden in grading mode)' : `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`)}
                                   >
                                     <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
@@ -770,7 +771,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 {/* 3. 17L Badge (Togglable) */}
                                 {show17L && (
                                   <div
-                                    className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
+                                    className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap ${
                                       actualTier
                                         ? 'bg-emerald-950/95 text-white border border-emerald-400'
                                         : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
@@ -783,25 +784,9 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                     </span>
                                   </div>
                                 )}
-                              </div>
+                              </>
                             );
                           })()}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCardForSimilarModal(card);
-                            }}
-                            className="p-1 rounded-md text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
-                            title="Find similar cards from past sets to project rating"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                          </button>
-                          <span className="text-[10px] font-mono text-violet-700 dark:text-cyan-300 font-bold">
-                            #{card.collector_number}
-                          </span>
                         </div>
                       </div>
 
@@ -813,9 +798,12 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                     </div>
 
                     <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-1">
+                      <div className="flex items-start justify-between gap-1.5">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-cyan-200 transition-colors truncate">{card.name}</h3>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 font-bold">
+                            #{card.collector_number}
+                          </span>
                           {card.mana_cost && (
                             <ManaCostRenderer manaCost={card.mana_cost} size="xs" />
                           )}
@@ -1542,17 +1530,6 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 <ManaCostRenderer manaCost={row.card.mana_cost} size="xs" />
                               )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCardForSimilarModal(row.card);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer"
-                              title="Find similar cards from past sets to project rating"
-                            >
-                              <Sparkles className="w-3 h-3" />
-                            </button>
                           </div>
                         </td>
                         <td className="py-2 px-3 capitalize font-mono text-slate-500 dark:text-slate-400">
@@ -1762,18 +1739,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
         />
       )}
 
-      {/* Similar Cards & Historical Comps Modal */}
-      {cardForSimilarModal && (
-        <SimilarCardsModal
-          isOpen={Boolean(cardForSimilarModal)}
-          onClose={() => setCardForSimilarModal(null)}
-          targetCard={cardForSimilarModal}
-          currentGrade={userEvaluations[`${cardForSimilarModal.set.toLowerCase()}_${cardForSimilarModal.name.toLowerCase()}`]?.userGrade}
-          onAdoptGrade={(target, grade) => {
-            handleQuickGrade(target, grade);
-          }}
-        />
-      )}
+
     </div>
   );
 };

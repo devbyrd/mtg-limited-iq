@@ -4,8 +4,7 @@ import { findSimilarCards, CardSimilarityResult, SimilarCardMatch } from '../../
 import { CardObfuscator } from '../CardObfuscator';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { SetSymbol } from '../UI/SetSymbol';
-import { X, Sparkles, Scale, TrendingUp, Check, Award, ExternalLink, ArrowRight, Layers, HelpCircle, Loader2 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { X, Scale, Check, Layers, HelpCircle, Loader2 } from 'lucide-react';
 
 interface SimilarCardsModalProps {
   isOpen: boolean;
@@ -76,13 +75,6 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
     if (onAdoptGrade && targetCard) {
       onAdoptGrade(targetCard, grade);
       setAdoptedGrade(grade);
-      try {
-        confetti({
-          particleCount: 40,
-          spread: 60,
-          origin: { y: 0.6 },
-        });
-      } catch (e) {}
     }
   };
 
@@ -95,20 +87,20 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-50/70 dark:bg-[#050818]/80">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-violet-600 to-amber-500 flex items-center justify-center text-white shadow-md shrink-0">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 shrink-0">
+              <Layers className="w-4 h-4 text-violet-600 dark:text-cyan-400" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading tracking-tight">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-heading tracking-tight">
                   Historical Comps & Similar Cards
                 </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-cyan-500/20 dark:text-cyan-300 font-bold border border-violet-200 dark:border-cyan-400/30">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-700">
                   Precedent Engine
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Finding functionally comparable cards across modern premier draft sets to project benchmark performance.
+                Functionally comparable cards across modern premier draft sets to project benchmark performance.
               </p>
             </div>
           </div>
@@ -183,23 +175,14 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAdopt(data.consensus.projectedTier)}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer shrink-0 ${
+                      className={`px-4 py-2 rounded-xl text-xs font-bold font-mono transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 border ${
                         adoptedGrade === data.consensus.projectedTier || currentGrade === data.consensus.projectedTier
-                          ? 'bg-emerald-600 text-white border border-emerald-400'
-                          : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white border border-violet-400/40 hover:shadow-md'
+                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                          : 'bg-slate-900 dark:bg-slate-800 hover:bg-violet-700 dark:hover:bg-violet-600 text-white border-slate-700 dark:border-slate-600 shadow-xs hover:border-violet-400'
                       }`}
                     >
-                      {adoptedGrade === data.consensus.projectedTier || currentGrade === data.consensus.projectedTier ? (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span>Consensus Adopted ({data.consensus.projectedTier})</span>
-                        </>
-                      ) : (
-                        <>
-                          <Award className="w-4 h-4" />
-                          <span>Adopt Consensus Grade ({data.consensus.projectedTier})</span>
-                        </>
-                      )}
+                      <Check className={`w-3.5 h-3.5 ${adoptedGrade === data.consensus.projectedTier || currentGrade === data.consensus.projectedTier ? 'text-emerald-200' : 'opacity-60'}`} />
+                      <span>{adoptedGrade === data.consensus.projectedTier || currentGrade === data.consensus.projectedTier ? `Used Grade (${data.consensus.projectedTier})` : `Use Grade (${data.consensus.projectedTier})`}</span>
                     </button>
                   )}
                 </div>
@@ -339,16 +322,41 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
                             "{comp.oracle_text || 'No oracle text.'}"
                           </p>
 
-                          {/* Adopt This Card's Grade Button */}
+                          {/* Use Grade Action Button(s) (distinct from grade badges) */}
                           {onAdoptGrade && (match.tierGrade || match.lsvGrade) && (
-                            <button
-                              type="button"
-                              onClick={() => handleAdopt((match.tierGrade || match.lsvGrade)!)}
-                              className="w-full py-1 px-2 rounded-lg text-[10px] font-bold font-mono transition-all bg-slate-100 dark:bg-slate-800/80 hover:bg-violet-100 dark:hover:bg-violet-950/60 text-slate-700 dark:text-slate-300 hover:text-violet-700 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-cyan-400/40 flex items-center justify-center gap-1 cursor-pointer"
-                            >
-                              <span>Rate target card as {match.tierGrade || match.lsvGrade}</span>
-                              <ArrowRight className="w-2.5 h-2.5" />
-                            </button>
+                            <div className="flex items-center gap-1.5 pt-1">
+                              {match.tierGrade && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdopt(match.tierGrade!)}
+                                  className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-bold font-mono transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                                    adoptedGrade === match.tierGrade || currentGrade === match.tierGrade
+                                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                                      : 'bg-slate-900 dark:bg-slate-800 hover:bg-violet-700 dark:hover:bg-violet-600 text-white border-slate-700 dark:border-slate-600 shadow-xs hover:border-violet-400'
+                                  }`}
+                                  title={`Adopt grade ${match.tierGrade} (from 17Lands)`}
+                                >
+                                  <Check className={`w-3 h-3 ${adoptedGrade === match.tierGrade || currentGrade === match.tierGrade ? 'text-emerald-200' : 'opacity-60'}`} />
+                                  <span>{adoptedGrade === match.tierGrade || currentGrade === match.tierGrade ? `Used Grade (${match.tierGrade})` : `Use Grade (${match.tierGrade})`}</span>
+                                </button>
+                              )}
+
+                              {match.lsvGrade && match.lsvGrade !== match.tierGrade && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdopt(match.lsvGrade!)}
+                                  className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-bold font-mono transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                                    adoptedGrade === match.lsvGrade || currentGrade === match.lsvGrade
+                                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                                      : 'bg-slate-900 dark:bg-slate-800 hover:bg-amber-600 dark:hover:bg-amber-600 text-white border-slate-700 dark:border-slate-600 shadow-xs hover:border-amber-400'
+                                  }`}
+                                  title={`Adopt grade ${match.lsvGrade} (from LSV)`}
+                                >
+                                  <Check className={`w-3 h-3 ${adoptedGrade === match.lsvGrade || currentGrade === match.lsvGrade ? 'text-emerald-200' : 'opacity-60'}`} />
+                                  <span>{adoptedGrade === match.lsvGrade || currentGrade === match.lsvGrade ? `Used Grade (${match.lsvGrade})` : `Use Grade (${match.lsvGrade})`}</span>
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       );

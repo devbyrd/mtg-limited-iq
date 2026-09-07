@@ -153,14 +153,16 @@ console.assert(isSetUnderTwoWeeksOld(matureDate) === false, 'Date 40 days ago mu
 // 6b. is17LandsEligibleForSet
 const authenticLandsDataForBLB: SeventeenLandsSetData = {
   setCode: 'BLB',
+  setName: 'Bloomburrow',
+  format: 'PremierDraft',
   sampleSize: 15000,
   updatedAt: '2024-09-01',
   cards: {
-    'Heartfire Hero': { name: 'Heartfire Hero', win_rate: 0.589, avg_seen: 3.1, game_count: 8500, tier_grade: 'A-' },
-    'Fell': { name: 'Fell', win_rate: 0.605, avg_seen: 1.8, game_count: 9200, tier_grade: 'A' },
-    'Might of the Meek': { name: 'Might of the Meek', win_rate: 0.568, avg_seen: 4.8, game_count: 7300, tier_grade: 'B' },
-    'Warren Warleader': { name: 'Warren Warleader', win_rate: 0.642, avg_seen: 1.2, game_count: 4800, tier_grade: 'A+' },
-    'Shore Up': { name: 'Shore Up', win_rate: 0.548, avg_seen: 5.6, game_count: 6700, tier_grade: 'C+' },
+    'Heartfire Hero': { name: 'Heartfire Hero', color: 'R', rarity: 'uncommon', seen_count: 10000, pick_rate: 0.2, iwd: 0.02, win_rate: 0.589, avg_seen: 3.1, game_count: 8500, tier_grade: 'A-' },
+    'Fell': { name: 'Fell', color: 'B', rarity: 'uncommon', seen_count: 11000, pick_rate: 0.25, iwd: 0.03, win_rate: 0.605, avg_seen: 1.8, game_count: 9200, tier_grade: 'A' },
+    'Might of the Meek': { name: 'Might of the Meek', color: 'R', rarity: 'common', seen_count: 8000, pick_rate: 0.15, iwd: 0.01, win_rate: 0.568, avg_seen: 4.8, game_count: 7300, tier_grade: 'B' },
+    'Warren Warleader': { name: 'Warren Warleader', color: 'W', rarity: 'mythic', seen_count: 5000, pick_rate: 0.4, iwd: 0.05, win_rate: 0.642, avg_seen: 1.2, game_count: 4800, tier_grade: 'A+' },
+    'Shore Up': { name: 'Shore Up', color: 'U', rarity: 'common', seen_count: 7500, pick_rate: 0.1, iwd: 0.0, win_rate: 0.548, avg_seen: 5.6, game_count: 6700, tier_grade: 'C+' },
   },
 };
 

@@ -506,7 +506,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
               >
                 {/* Top Bar above the card: Grade Badge(s) on the left & 17Lands external link icon on the right */}
                 <div className="w-[185px] flex items-center justify-between mb-1.5 min-h-[22px]">
-                  <div className="flex items-center gap-1 flex-wrap">
+                  <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
                     {(() => {
                       const actualTier: GradeTier | null = (landData && typeof landData.win_rate === 'number' && landData.win_rate > 0)
                         ? ((landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate))
@@ -514,16 +514,16 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       const hasUserGrade = Boolean(evalData?.userGrade);
 
                       return (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
                           <div
-                            className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono"
+                            className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
                             title={hasUserGrade ? `Your assigned grade: ${evalData!.userGrade}` : 'Not graded yet'}
                           >
                             <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
                             <span className="text-[11px] font-black">{hasUserGrade ? evalData!.userGrade : '—'}</span>
                           </div>
                           <div
-                            className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono ${
+                            className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap ${
                               effectiveIsBlind || !hasUserGrade
                                 ? 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
                                 : actualTier
