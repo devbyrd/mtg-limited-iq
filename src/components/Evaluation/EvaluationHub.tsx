@@ -830,24 +830,20 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
 
                             return (
                               <>
-                                {/* 17Lands Stats in a clean, single line */}
-                                <div className="flex items-center justify-between gap-1 text-[11px] flex-wrap">
-                                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                    17L {actualTier}
+                                {/* 17Lands empirical metrics (no redundant tier grade, as it's in the top badge) */}
+                                <div className="flex items-center justify-between gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-mono">
+                                  <span>
+                                    GIH WR: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{((landData.win_rate || 0) * 100).toFixed(1)}%</strong>
                                   </span>
                                   <span className="text-slate-300 dark:text-slate-700">•</span>
-                                  <span className="text-slate-700 dark:text-slate-200">
-                                    <strong>{((landData.win_rate || 0) * 100).toFixed(1)}%</strong> WR
-                                  </span>
-                                  <span className="text-slate-300 dark:text-slate-700">•</span>
-                                  <span className="text-slate-600 dark:text-slate-400">
-                                    ALSA <strong>{typeof landData.avg_seen === 'number' ? landData.avg_seen.toFixed(1) : '-'}</strong>
+                                  <span>
+                                    ALSA: <strong className="font-bold text-slate-900 dark:text-white">{typeof landData.avg_seen === 'number' ? landData.avg_seen.toFixed(1) : '-'}</strong>
                                   </span>
                                   {typeof landData.iwd === 'number' && (
                                     <>
                                       <span className="text-slate-300 dark:text-slate-700">•</span>
-                                      <span className={landData.iwd >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}>
-                                        IWD <strong>{landData.iwd >= 0 ? '+' : ''}{(landData.iwd * 100).toFixed(1)}%</strong>
+                                      <span>
+                                        IWD: <strong className={`font-bold ${landData.iwd >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>{landData.iwd >= 0 ? '+' : ''}{(landData.iwd * 100).toFixed(1)}%</strong>
                                       </span>
                                     </>
                                   )}
@@ -860,19 +856,19 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                               </>
                             );
                           })() : (
-                            <div className="flex items-center justify-between text-[10px] text-slate-500">
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
                               <span>17Lands: <strong className="text-amber-600 dark:text-amber-400">Data TBD</strong></span>
                               <span className="italic">Telemetry pending</span>
                             </div>
                           )}
 
-                          {/* LSV Reference (Single subtle row, no extra box) */}
+                          {/* LSV Reference: Score & Verdict (grade already in top badge) */}
                           {showLsv && (() => {
                             const lsvRating = getLsvRatingForCard(card);
                             return (
-                              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60">
-                                <span>LSV: <strong className="text-amber-600 dark:text-amber-400">{lsvRating.grade}</strong> ({lsvRating.score.toFixed(1)})</span>
-                                <span className="italic truncate">{lsvRating.verdict || 'Playable'}</span>
+                              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60 font-mono">
+                                <span>LSV: <strong>{lsvRating.score.toFixed(1)} / 5.0</strong></span>
+                                <span className="italic truncate font-sans">{lsvRating.verdict || 'Playable'}</span>
                               </div>
                             );
                           })()}
