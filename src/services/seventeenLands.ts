@@ -92,11 +92,11 @@ export function get17LandsCardUrl(
 }
 
 /**
- * Returns the direct 17Lands.com Deck Color / Archetype metagame URL
+ * Returns the direct 17Lands.com Deck Color Data / Archetype metagame URL
  */
 export function get17LandsArchetypeUrl(setCode: string): string {
   const upper = (setCode || '').toUpperCase().trim();
-  return `https://www.17lands.com/deck_color_metagame?expansion=${encodeURIComponent(upper)}`;
+  return `https://www.17lands.com/deck_color_data?expansion=${encodeURIComponent(upper)}&format=PremierDraft`;
 }
 
 /**

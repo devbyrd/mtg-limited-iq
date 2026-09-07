@@ -638,7 +638,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-[#050818] text-slate-700 dark:text-slate-200 hover:text-violet-600 dark:hover:text-cyan-300 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-1.5 shrink-0 self-start sm:self-center transition-colors"
-              title="Open 17Lands Deck Color Metagame"
+              title="Open 17Lands Deck Color Data & Win Rates in new tab"
             >
               <BarChart2 className="w-3.5 h-3.5 text-emerald-500" />
               <span>17Lands Metagame</span>

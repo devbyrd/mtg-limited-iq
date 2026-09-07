@@ -1,6 +1,6 @@
 import { getFallbackCards, POPULAR_LIMITED_SETS } from '../services/scryfall';
 import { generateQuiz } from '../services/quizGenerator';
-import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS, isSetUnderTwoWeeksOld, is17LandsEligibleForSet, get17LandsCardUrl } from '../services/seventeenLands';
+import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS, isSetUnderTwoWeeksOld, is17LandsEligibleForSet, get17LandsCardUrl, get17LandsArchetypeUrl } from '../services/seventeenLands';
 import { UserProfileStats, QuizResult, QuizSettings, UserCardEvaluation, Card, SeventeenLandsSetData } from '../types/mtg';
 import { calculateMasteryRank, defaultStats } from '../services/storage';
 import { isAuthentic17LandsDataSet, generateSetSynthesisReport } from '../services/archetypeEvaluator';
@@ -323,5 +323,15 @@ console.assert(
 );
 
 console.log('   ✓ 17Lands direct card URL resolution and fallbacks verified.');
+
+// Test 8: 17Lands Deck Color / Archetype URL Resolution
+console.log('\n[TEST 8] 17Lands Deck Color / Archetype Metagame URL:');
+const hobArchetypeUrl = get17LandsArchetypeUrl('HOB');
+console.log('   HOB Archetype URL ->', hobArchetypeUrl);
+console.assert(
+  hobArchetypeUrl === 'https://www.17lands.com/deck_color_data?expansion=HOB&format=PremierDraft',
+  'Must point to /deck_color_data with expansion and format=PremierDraft'
+);
+console.log('   ✓ 17Lands deck color metagame URL verified.');
 
 console.log('\n🎉 ALL LOGIC AND DATA VERIFICATION TESTS PASSED SUCCESSFULLY!');
