@@ -351,12 +351,12 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                 className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   isBlindGrading
                     ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
-                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:text-slate-900 dark:bg-[#050818] dark:text-slate-400 dark:border-slate-800 dark:hover:text-white'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
                 }`}
-                title={isBlindGrading ? 'Grading mode: 17Lands benchmark data is hidden' : '17Lands benchmark data is visible'}
+                title={isBlindGrading ? 'Grading Mode: Benchmarks hidden. Click to switch to Compare Mode' : 'Compare Mode: 17Lands ground truth benchmark visible. Click to switch to Grading Mode'}
               >
-                {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className="w-3.5 h-3.5 text-violet-600 dark:text-cyan-400" />}
-                <span>{isBlindGrading ? 'Grading Mode' : '17Lands Visible'}</span>
+                {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+                <span>{isBlindGrading ? 'Grading Mode' : 'Compare Mode'}</span>
               </button>
             )}
 
@@ -419,10 +419,10 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                       {showLsv && (
                         <div
                           className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono"
-                          title={isBlindGrading ? 'LSV grade hidden in grading mode' : `LSV Grade: ${lsvRating.grade} (${lsvRating.score.toFixed(1)}/5.0)`}
+                          title={!hasUserGrade ? 'Rate the card to see how you compare' : (isBlindGrading ? 'LSV grade hidden in grading mode' : `LSV Grade: ${lsvRating.grade} (${lsvRating.score.toFixed(1)}/5.0)`)}
                         >
                           <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
-                          <span className="text-[11px] font-black text-amber-200">{isBlindGrading ? '???' : lsvRating.grade}</span>
+                          <span className="text-[11px] font-black text-amber-200">{!hasUserGrade || isBlindGrading ? '—' : lsvRating.grade}</span>
                         </div>
                       )}
 
@@ -434,11 +434,11 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                               ? 'bg-emerald-950/95 text-white border border-emerald-400'
                               : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
                           }`}
-                          title={actualTier ? (isBlindGrading ? '17Lands empirical grade (hidden in blind mode)' : `17Lands Grade: ${actualTier}`) : '17Lands data syncing'}
+                          title={!hasUserGrade ? 'Rate the card to see how you compare' : (actualTier ? (isBlindGrading ? '17Lands empirical grade (hidden in blind mode)' : `17Lands Baseline: ${actualTier} (Ground Truth)`) : '17Lands data syncing')}
                         >
                           <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
                           <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                            {actualTier ? (isBlindGrading ? '???' : actualTier) : 'TBD'}
+                            {!hasUserGrade || isBlindGrading ? '—' : (actualTier || 'TBD')}
                           </span>
                         </div>
                       )}

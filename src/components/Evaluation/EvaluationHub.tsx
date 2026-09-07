@@ -19,7 +19,7 @@ import { QuickRateModal } from './QuickRateModal';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
 import { ArchetypeForecastView } from './ArchetypeForecastView';
 import { MethodologyGuideView } from './MethodologyGuideView';
-import { Trophy, Award, Sparkles, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2 } from 'lucide-react';
+import { Trophy, Award, Sparkles, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2, Target } from 'lucide-react';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
@@ -379,24 +379,24 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
 
   const formatTierGapVerdict = (gap: number) => {
     if (gap === 0) {
-      return { text: '🎯 Exact Match (Correct)', color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40 font-bold', isCorrect: true };
+      return { text: '🎯 Exact Match vs 17Lands', color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40 font-bold', isCorrect: true };
     }
     if (gap === 1) {
-      return { text: '✓ +1 Step Over (Correct)', color: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold', isCorrect: true };
+      return { text: '✓ +1 Step Over 17Lands (Within Tolerance)', color: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold', isCorrect: true };
     }
     if (gap === -1) {
-      return { text: '✓ -1 Step Under (Correct)', color: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold', isCorrect: true };
+      return { text: '✓ -1 Step Under 17Lands (Within Tolerance)', color: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold', isCorrect: true };
     }
     if (gap === 2) {
-      return { text: '+2 Steps Over (Minor Trap)', color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 font-semibold', isCorrect: false };
+      return { text: '+2 Over 17Lands (Minor Trap)', color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 font-semibold', isCorrect: false };
     }
     if (gap === -2) {
-      return { text: '-2 Steps Under (Minor Sleeper)', color: 'bg-sky-100 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-500/40 font-semibold', isCorrect: false };
+      return { text: '-2 Under 17Lands (Minor Sleeper)', color: 'bg-sky-100 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-500/40 font-semibold', isCorrect: false };
     }
     if (gap >= 3) {
-      return { text: `+${gap} Steps Over (Major Trap 🔥)`, color: 'bg-rose-100 dark:bg-rose-500/25 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-500/50 font-bold', isCorrect: false };
+      return { text: `+${gap} Over 17Lands (Major Trap 🔥)`, color: 'bg-rose-100 dark:bg-rose-500/25 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-500/50 font-bold', isCorrect: false };
     }
-    return { text: `${gap} Steps Under (Major Sleeper 🧊)`, color: 'bg-blue-100 dark:bg-blue-500/25 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-500/50 font-bold', isCorrect: false };
+    return { text: `${gap} Under 17Lands (Major Sleeper 🧊)`, color: 'bg-blue-100 dark:bg-blue-500/25 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-500/50 font-bold', isCorrect: false };
   };
 
   const getTierBadgeColor = (tier: GradeTier) => {
@@ -494,12 +494,12 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 cursor-pointer min-w-[112px] shrink-0 whitespace-nowrap ${
                 isBlindGrading
                   ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
-                  : 'bg-slate-100 dark:bg-[#050818] hover:bg-slate-200 dark:hover:bg-[#10163b] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
               }`}
-              title="Toggle grading mode to hide/show 17Lands win rate data"
+              title={isBlindGrading ? 'Grading Mode: Benchmarks hidden. Click to switch to Compare Mode' : 'Compare Mode: 17Lands ground truth benchmark visible. Click to switch to Grading Mode'}
             >
-              {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <Eye className="w-3.5 h-3.5 text-violet-600 dark:text-cyan-400 shrink-0" />}
-              <span>{isBlindGrading ? 'Grading Mode' : '17Lands Mode'}</span>
+              {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+              <span>{isBlindGrading ? 'Grading Mode' : 'Compare Mode'}</span>
             </button>
           ) : (
             <div
@@ -748,10 +748,10 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 {showLsv && (
                                   <div
                                     className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono"
-                                    title={isBlindGrading ? 'LSV Rating (hidden in grading mode)' : `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
+                                    title={!hasUserGrade ? 'Rate the card to see how you compare' : (isBlindGrading ? 'LSV Rating (hidden in grading mode)' : `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`)}
                                   >
                                     <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
-                                    <span className="text-[11px] font-black text-amber-200">{isBlindGrading ? '???' : lsvRating.grade}</span>
+                                    <span className="text-[11px] font-black text-amber-200">{!hasUserGrade || isBlindGrading ? '—' : lsvRating.grade}</span>
                                   </div>
                                 )}
 
@@ -763,11 +763,11 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                         ? 'bg-emerald-950/95 text-white border border-emerald-400'
                                         : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
                                     }`}
-                                    title={actualTier ? (isBlindGrading ? '17Lands empirical grade (hidden in blind mode)' : `17Lands Grade: ${actualTier}`) : '17Lands data is available approximately 2 weeks after release'}
+                                    title={!hasUserGrade ? 'Rate the card to see how you compare' : (actualTier ? (isBlindGrading ? '17Lands empirical grade (hidden in grading mode)' : `17Lands Baseline: ${actualTier} (Ground Truth)`) : '17Lands data is available approximately 2 weeks after release')}
                                   >
                                     <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
                                     <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
-                                      {actualTier ? (isBlindGrading ? '???' : actualTier) : 'TBD'}
+                                      {!hasUserGrade || isBlindGrading ? '—' : (actualTier || 'TBD')}
                                     </span>
                                   </div>
                                 )}
@@ -802,50 +802,139 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                       </p>
 
                       {/* Evaluation Verdict & 17Lands Stats */}
-                      {!isBlindGrading && (
-                        landData ? (() => {
-                          const actualTier: GradeTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
-                          const gap = userEval ? gradeTierToIndex(actualTier) - gradeTierToIndex(userEval.userGrade) : null;
-                          const verdict = gap !== null ? formatTierGapVerdict(gap) : null;
-
-                          return (
-                            <div
-                              className="mt-2 p-2 rounded-xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 space-y-1.5 text-xs font-mono"
-                              title={`17Lands GIH Win Rate: ${((landData.win_rate || 0) * 100).toFixed(1)}% WR • ALSA: ${typeof landData.avg_seen === 'number' ? landData.avg_seen.toFixed(1) : '-'}`}
-                            >
-                              <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
-                                <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                  <span>17L {actualTier}</span>
+                      {!userEval?.userGrade ? (
+                        /* Card is Ungraded: Do not show grades or benchmarks */
+                        <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-[#050818] border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1">
+                          <div className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-500 dark:text-cyan-400 shrink-0" />
+                            <span>Rate the card to see how you compare</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                            Assign grade below to unlock 17Lands ground truth & LSV preview
+                          </p>
+                        </div>
+                      ) : isBlindGrading ? (
+                        /* Card is Graded, but user is in Grading Mode */
+                        <div className="mt-2 p-2.5 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-500/30 text-xs font-mono space-y-1">
+                          <div className="flex items-center justify-between text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                            <span className="flex items-center gap-1.5">
+                              <EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                              <span>Grading Mode Active</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Benchmarks Hidden</span>
+                          </div>
+                          <p className="text-[11px] font-sans text-slate-600 dark:text-slate-400">
+                            You graded this <strong className="font-mono text-violet-600 dark:text-violet-300">{userEval.userGrade}</strong>. Switch to <strong>Compare Mode</strong> above to reveal 17Lands reality.
+                          </p>
+                        </div>
+                      ) : (
+                        /* Graded Card in Compare Mode */
+                        <div className="mt-2 space-y-1.5">
+                          {/* 1. LSV Auxiliary Expert Preview */}
+                          {showLsv && (() => {
+                            const lsvRating = getLsvRatingForCard(card);
+                            return (
+                              <div className="p-1.5 px-2 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/30 flex items-center justify-between gap-2 text-xs font-mono">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                  <span className="text-[10px] uppercase font-bold text-amber-800 dark:text-amber-300 shrink-0">LSV Preview</span>
+                                  <span className="font-bold text-slate-900 dark:text-white px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-500/30 text-[11px] shrink-0">
+                                    {lsvRating.grade} ({lsvRating.score.toFixed(1)}/5.0)
+                                  </span>
+                                  <span className="text-[10px] text-amber-700/80 dark:text-amber-300/80 truncate font-sans">
+                                    • {lsvRating.verdict || 'Playable'}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300/50 dark:border-amber-700/50 shrink-0" title="Expert pre-release set review heuristic">
+                                  Expert Ref
                                 </span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-emerald-700 dark:text-emerald-300 font-bold">
-                                    {((landData.win_rate || 0) * 100).toFixed(1)}% WR
+                              </div>
+                            );
+                          })()}
+
+                          {/* 2. 17Lands Ground Truth Benchmark Box */}
+                          {landData ? (() => {
+                            const actualTier: GradeTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
+                            const gap = gradeTierToIndex(actualTier) - gradeTierToIndex(userEval.userGrade);
+                            const verdict = formatTierGapVerdict(gap);
+
+                            return (
+                              <div className="p-2 rounded-xl bg-slate-50 dark:bg-[#050818] border border-emerald-500/30 dark:border-emerald-500/20 space-y-1.5 text-xs font-mono">
+                                {/* Header: Ground Truth Baseline Target */}
+                                <div className="flex items-center justify-between text-[10px] pb-1 border-b border-slate-200 dark:border-slate-800">
+                                  <span className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300">
+                                    <Target className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                    <span className="uppercase tracking-wider">17Lands Baseline</span>
                                   </span>
-                                  <span>•</span>
-                                  <span>
-                                    ALSA <strong className="text-slate-700 dark:text-slate-200 font-bold">{typeof landData.avg_seen === 'number' ? landData.avg_seen.toFixed(1) : '-'}</strong>
+                                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600">
+                                    Ground Truth
                                   </span>
+                                </div>
+
+                                {/* 17Lands Metrics Grid */}
+                                <div className="grid grid-cols-3 gap-1.5 text-center">
+                                  <div className="p-1 rounded-lg bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800">
+                                    <div className="text-[9px] uppercase text-slate-400 font-semibold">Tier Grade</div>
+                                    <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">{actualTier}</div>
+                                  </div>
+                                  <div className="p-1 rounded-lg bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800">
+                                    <div className="text-[9px] uppercase text-slate-400 font-semibold">GIH WR</div>
+                                    <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                      {((landData.win_rate || 0) * 100).toFixed(1)}%
+                                    </div>
+                                  </div>
+                                  <div className="p-1 rounded-lg bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800">
+                                    <div className="text-[9px] uppercase text-slate-400 font-semibold">ALSA</div>
+                                    <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                      {typeof landData.avg_seen === 'number' ? landData.avg_seen.toFixed(1) : '-'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Secondary stats: IWD + Games logged */}
+                                {(typeof landData.iwd === 'number' || (landData.game_count && landData.game_count > 0)) && (
+                                  <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-0.5">
+                                    {typeof landData.iwd === 'number' ? (
+                                      <span>
+                                        IWD: <strong className={`font-mono font-bold ${landData.iwd >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                                          {landData.iwd >= 0 ? '+' : ''}{(landData.iwd * 100).toFixed(1)}%
+                                        </strong>
+                                      </span>
+                                    ) : <span />}
+                                    {landData.game_count ? (
+                                      <span className="text-[9px]">
+                                        {landData.game_count.toLocaleString()} games
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                )}
+
+                                {/* Calibration Comparison Verdict */}
+                                <div className={`w-full px-2 py-1 rounded-lg text-[10px] font-bold border text-center whitespace-normal leading-tight ${verdict.color}`}>
+                                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                                    <span className="text-[9px] uppercase tracking-wider opacity-80">
+                                      Me: <strong className="font-mono">{userEval.userGrade}</strong> vs 17L: <strong className="font-mono">{actualTier}</strong>
+                                    </span>
+                                    <span>{verdict.text}</span>
+                                  </div>
                                 </div>
                               </div>
-
-                              {verdict ? (
-                                <div className={`w-full px-2 py-1 rounded-lg text-[10px] font-bold border text-center whitespace-normal leading-tight ${verdict.color}`}>
-                                  {verdict.text}
-                                </div>
-                              ) : (
-                                <div className="text-[10px] text-slate-400 italic text-center py-0.5">
-                                  Rate card to check calibration
-                                </div>
-                              )}
+                            );
+                          })() : (
+                            <div className="p-2.5 rounded-xl bg-slate-50/60 dark:bg-[#050818]/60 border border-slate-200 dark:border-slate-800 space-y-1 text-xs font-mono">
+                              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                                <span className="font-bold flex items-center gap-1">
+                                  <Target className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>17Lands Baseline:</span>
+                                </span>
+                                <span className="font-bold text-amber-600 dark:text-amber-400">Data TBD</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 italic">
+                                17Lands empirical telemetry is recorded ~2 weeks after set launch.
+                              </p>
                             </div>
-                          );
-                        })() : (
-                          <div className="mt-2 p-1.5 rounded-xl bg-slate-50/60 dark:bg-[#050818]/60 border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                            <span className="font-semibold text-slate-500">17Lands: <strong className="text-amber-600 dark:text-amber-400 font-bold">TBD</strong></span>
-                            <span className="italic" title="17Lands data is available approximately 2 weeks after release">Unreleased Set</span>
-                          </div>
-                        )
+                          )}
+                        </div>
                       )}
 
                       {/* User Notes Snippet */}
@@ -1506,27 +1595,31 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           const lsvRating = getLsvRatingForCard(row.card);
                           return (
                             <td className="py-2 px-3 font-mono">
-                              <span
-                                className="font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 w-fit"
-                                title={isBlindGrading ? 'LSV rating hidden in grading mode' : `LSV: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
-                              >
-                                {isBlindGrading ? (
-                                  <span>???</span>
-                                ) : (
-                                  <>
-                                    <span>{lsvRating.grade}</span>
-                                    <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-normal">({lsvRating.score.toFixed(1)})</span>
-                                  </>
-                                )}
-                              </span>
+                              {!row.userGrade ? (
+                                <span className="text-slate-400 dark:text-slate-600 font-mono">—</span>
+                              ) : isBlindGrading ? (
+                                <span className="font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 w-fit">
+                                  —
+                                </span>
+                              ) : (
+                                <span
+                                  className="font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 w-fit"
+                                  title={`LSV: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`}
+                                >
+                                  <span>{lsvRating.grade}</span>
+                                  <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-normal">({lsvRating.score.toFixed(1)})</span>
+                                </span>
+                              )}
                             </td>
                           );
                         })()}
                         {show17L && (
                           <td className="py-2 px-3 font-mono font-bold text-slate-700 dark:text-slate-200">
-                            {row.actualTier ? (
+                            {!row.userGrade ? (
+                              <span className="text-slate-400 dark:text-slate-600 font-mono">—</span>
+                            ) : row.actualTier ? (
                               <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800/80">
-                                {isBlindGrading ? '???' : row.actualTier}
+                                {isBlindGrading ? '—' : row.actualTier}
                               </span>
                             ) : (
                               <span className="text-amber-600 dark:text-amber-400 font-semibold">TBD</span>
@@ -1534,7 +1627,9 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           </td>
                         )}
                         <td className="py-2 px-3 font-mono">
-                          {isBlindGrading ? (
+                          {!row.userGrade ? (
+                            <span className="text-slate-400 dark:text-slate-600 font-mono">—</span>
+                          ) : isBlindGrading ? (
                             <span className="text-slate-400 dark:text-slate-500 font-mono">???</span>
                           ) : row.winRate !== undefined ? (
                             <span className="text-emerald-600 dark:text-emerald-400 font-bold">{(row.winRate * 100).toFixed(1)}%</span>
@@ -1543,7 +1638,9 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           )}
                         </td>
                         <td className="py-2 px-3 font-mono text-violet-700 dark:text-cyan-300">
-                          {isBlindGrading ? (
+                          {!row.userGrade ? (
+                            <span className="text-slate-400 dark:text-slate-600 font-mono">—</span>
+                          ) : isBlindGrading ? (
                             <span className="text-slate-400 dark:text-slate-500 font-mono">???</span>
                           ) : row.landData ? (
                             row.landData.avg_seen.toFixed(1)
@@ -1552,7 +1649,11 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           )}
                         </td>
                         <td className="py-2 px-3 font-mono">
-                          {isBlindGrading ? (
+                          {!row.userGrade ? (
+                            <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">
+                              Rate the card to see how you compare
+                            </span>
+                          ) : isBlindGrading ? (
                             <span className="px-2 py-0.5 rounded text-[11px] bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 font-mono">
                               Grading Mode
                             </span>
