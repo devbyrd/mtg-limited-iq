@@ -353,7 +353,7 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                     ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40'
                     : 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60'
                 }`}
-                title={isBlindGrading ? 'Grading Mode: Benchmarks hidden. Click to switch to Compare Mode' : 'Compare Mode: 17Lands ground truth benchmark visible. Click to switch to Grading Mode'}
+                title={isBlindGrading ? 'Grading Mode: Benchmarks hidden. Click to switch to Compare Mode' : 'Compare Mode: 17Lands data visible. Click to switch to Grading Mode'}
               >
                 {isBlindGrading ? <EyeOff className="w-3.5 h-3.5 text-amber-500" /> : <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
                 <span>{isBlindGrading ? 'Grading Mode' : 'Compare Mode'}</span>
@@ -434,7 +434,7 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                               ? 'bg-emerald-950/95 text-white border border-emerald-400'
                               : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
                           }`}
-                          title={!hasUserGrade ? 'Rate the card to see how you compare' : (actualTier ? (isBlindGrading ? '17Lands empirical grade (hidden in blind mode)' : `17Lands Baseline: ${actualTier} (Ground Truth)`) : '17Lands data syncing')}
+                          title={!hasUserGrade ? 'Rate the card to see how you compare' : (actualTier ? (isBlindGrading ? '17Lands grade (hidden in grading mode)' : `17Lands: ${actualTier}`) : '17Lands data syncing')}
                         >
                           <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
                           <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>

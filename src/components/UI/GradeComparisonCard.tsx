@@ -127,11 +127,11 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
           <div className="flex items-center gap-2">
             <Scale className="w-4 h-4 text-violet-600 dark:text-cyan-400 shrink-0" />
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 font-mono">
-              Evaluation vs 17Lands Baseline
+              Evaluation vs 17Lands
             </h4>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-            Calibrated against 17Lands empirical ground truth • LSV shown as expert preview reference
+            Compare your grade against 17Lands win rates and LSV's review
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -183,7 +183,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
                 <span>LSV</span>
               </div>
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60">
-                EXPERT REF
+                LSV
               </span>
             </div>
 
@@ -211,7 +211,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
                 <>
                   <span>{lsvRating.verdict || 'Playable'}</span>
                   {userGrade && (
-                    <span className="font-mono font-semibold" title="Delta vs LSV (Auxiliary reference)">
+                    <span className="font-mono font-semibold" title="Delta vs LSV">
                       Δ {lsvDelta > 0 ? `+${lsvDelta}` : lsvDelta < 0 ? `${lsvDelta}` : '0'}
                     </span>
                   )}
@@ -232,7 +232,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
                 <span>17L</span>
               </div>
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/60">
-                GROUND TRUTH
+                17LANDS
               </span>
             </div>
 
