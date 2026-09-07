@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Card, MTGColor } from '../../types/mtg';
 
 export type ManaFilterColor = 'ALL' | 'W' | 'U' | 'B' | 'R' | 'G' | 'COLORLESS' | 'GOLD' | 'LANDS';
 
 interface ManaColorFilterBarProps {
-  selectedColor: string;
-  onSelectColor: (color: string) => void;
+  selectedColor?: string | string[];
+  selectedColors?: string[];
+  onSelectColor?: (color: string) => void;
+  onSelectColors?: (colors: string[]) => void;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   showAllButton?: boolean;
@@ -12,27 +15,77 @@ interface ManaColorFilterBarProps {
 
 export const ManaColorFilterBar: React.FC<ManaColorFilterBarProps> = ({
   selectedColor,
+  selectedColors,
   onSelectColor,
+  onSelectColors,
   className = '',
   size = 'md',
   showAllButton = true,
 }) => {
+  // Normalize active selection array
+  const activeSelection: string[] = useMemo(() => {
+    if (selectedColors && Array.isArray(selectedColors)) {
+      return selectedColors;
+    }
+    if (Array.isArray(selectedColor)) {
+      return selectedColor;
+    }
+    if (typeof selectedColor === 'string') {
+      if (selectedColor === 'ALL' || !selectedColor) return ['ALL'];
+      if (selectedColor.includes(',')) return selectedColor.split(',').filter(Boolean);
+      // If it's a 2-letter archetype like 'UB' or 'WR'
+      if (selectedColor.length === 2 && !['ALL', 'GOLD', 'LANDS', 'MULTI', 'COLORLESS'].includes(selectedColor)) {
+        return [selectedColor[0], selectedColor[1]];
+      }
+      return [selectedColor];
+    }
+    return ['ALL'];
+  }, [selectedColor, selectedColors]);
+
+  const isAllActive = activeSelection.length === 0 || activeSelection.includes('ALL');
+
   const handleClick = (colorId: string) => {
     if (colorId === 'ALL') {
-      onSelectColor('ALL');
+      if (onSelectColors) onSelectColors(['ALL']);
+      if (onSelectColor) onSelectColor('ALL');
       return;
     }
 
-    // If currently an archetype or gold pair like 'UB' or 'GOLD_UB'
-    if (selectedColor.length === 2 || selectedColor.startsWith('GOLD_')) {
-      onSelectColor(colorId);
-      return;
-    }
+    const currentWithoutAll = activeSelection.filter((c) => c !== 'ALL');
+    let next: string[];
 
-    if (selectedColor === colorId || (colorId === 'GOLD' && selectedColor === 'MULTI')) {
-      onSelectColor('ALL');
+    if (currentWithoutAll.includes(colorId)) {
+      // Toggle off
+      next = currentWithoutAll.filter((c) => c !== colorId);
+      if (next.length === 0) {
+        next = ['ALL'];
+      }
     } else {
-      onSelectColor(colorId);
+      // If colorId is GOLD, remove MULTI if present
+      if (colorId === 'GOLD') {
+        const withoutMulti = currentWithoutAll.filter((c) => c !== 'MULTI' && !c.startsWith('GOLD_'));
+        next = [...withoutMulti, 'GOLD'];
+      } else {
+        next = [...currentWithoutAll, colorId];
+      }
+    }
+
+    if (onSelectColors) {
+      onSelectColors(next);
+    }
+    if (onSelectColor) {
+      if (next.length === 0 || next.includes('ALL')) {
+        onSelectColor('ALL');
+      } else if (next.length === 1) {
+        onSelectColor(next[0]);
+      } else {
+        const isAllMana = next.every((c) => ['W', 'U', 'B', 'R', 'G'].includes(c));
+        if (isAllMana && next.length === 2) {
+          onSelectColor(next.join(''));
+        } else {
+          onSelectColor(next.join(','));
+        }
+      }
     }
   };
 
@@ -87,13 +140,13 @@ export const ManaColorFilterBar: React.FC<ManaColorFilterBarProps> = ({
       {showAllButton && (
         <button
           type="button"
-          onClick={() => onSelectColor('ALL')}
+          onClick={() => handleClick('ALL')}
           className={`px-2.5 py-1 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
-            selectedColor === 'ALL'
+            isAllActive
               ? 'bg-violet-600 text-white shadow-xs font-black'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
           }`}
-          title="Show all colors"
+          title="Reset to all colors"
         >
           ALL
         </button>
@@ -101,11 +154,11 @@ export const ManaColorFilterBar: React.FC<ManaColorFilterBarProps> = ({
 
       <div className="flex items-center gap-1.5 sm:gap-2">
         {COLOR_BUTTONS.map((item) => {
-          const cleanCode = selectedColor.replace('GOLD_', '');
           const isSelected =
-            selectedColor === item.id ||
-            (item.id === 'GOLD' && (selectedColor === 'MULTI' || selectedColor.startsWith('GOLD'))) ||
-            (cleanCode.length === 2 && (item.id === cleanCode[0] || item.id === cleanCode[1]));
+            !isAllActive &&
+            (activeSelection.includes(item.id) ||
+              (item.id === 'GOLD' && (activeSelection.includes('MULTI') || activeSelection.some((s) => s.startsWith('GOLD')))));
+
           return (
             <button
               key={item.id}
@@ -171,3 +224,143 @@ export const ManaColorFilterBar: React.FC<ManaColorFilterBarProps> = ({
     </div>
   );
 };
+
+/**
+ * Evaluates whether a card matches the active additive color filters.
+ */
+export function cardMatchesColorFilter(c: Card, selectedColors: string[] | string): boolean {
+  const activeSelection: string[] = Array.isArray(selectedColors)
+    ? selectedColors
+    : typeof selectedColors === 'string'
+    ? selectedColors === 'ALL' || !selectedColors
+      ? ['ALL']
+      : selectedColors.includes(',')
+      ? selectedColors.split(',').filter(Boolean)
+      : selectedColors.length === 2 && !['ALL', 'GOLD', 'LANDS', 'MULTI', 'COLORLESS'].includes(selectedColors)
+      ? [selectedColors[0], selectedColors[1]]
+      : [selectedColors]
+    : ['ALL'];
+
+  if (!activeSelection || activeSelection.length === 0 || activeSelection.includes('ALL')) {
+    return true;
+  }
+
+  // Handle specific GOLD_XX pair (e.g. 'GOLD_UB')
+  const goldSpecific = activeSelection.find((s) => s.startsWith('GOLD_'));
+  if (goldSpecific) {
+    const pairCode = goldSpecific.replace('GOLD_', '');
+    const c1 = pairCode[0] as MTGColor;
+    const c2 = pairCode[1] as MTGColor;
+    const colors = c.colors || [];
+    return colors.length >= 2 && colors.includes(c1) && colors.includes(c2);
+  }
+
+  const manaColors = activeSelection.filter((s) => ['W', 'U', 'B', 'R', 'G'].includes(s)) as MTGColor[];
+  const hasColorless = activeSelection.includes('COLORLESS');
+  const hasGold = activeSelection.includes('GOLD') || activeSelection.includes('MULTI');
+  const hasLands = activeSelection.includes('LANDS');
+
+  const isLand = Boolean(c.is_land || c.type_line?.toLowerCase().includes('land'));
+  const isColorlessNonLand = (c.colors.length === 0 || (c.colors.length === 1 && c.colors[0] === 'C')) && !isLand;
+  const isMulticolor = (c.colors || []).length >= 2;
+
+  // 1. If Lands selected and card is Land
+  if (hasLands && isLand) return true;
+
+  // 2. If Colorless selected and card is Colorless (non-land)
+  if (hasColorless && isColorlessNonLand) return true;
+
+  // 3. If Gold selected
+  if (hasGold) {
+    if (manaColors.length === 0) {
+      if (isMulticolor) return true;
+    } else if (manaColors.length === 1) {
+      // Multicolor card containing this color
+      if (isMulticolor && c.colors.includes(manaColors[0])) return true;
+    } else {
+      // Multicolor card within the selected mana colors
+      if (isMulticolor && c.colors.every((col) => manaColors.includes(col))) return true;
+    }
+  }
+
+  // 4. Mana colors selected
+  if (manaColors.length > 0 && !isLand) {
+    const cardColors = (c.colors || []).filter((col) => col !== 'C');
+    // If user selected GOLD and multiple mana colors, they only wanted gold cards
+    if (hasGold && manaColors.length >= 2) {
+      // Handled in step 3
+    } else {
+      if (cardColors.length > 0 && cardColors.every((col) => manaColors.includes(col))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Checks if a card matches a single role or card type.
+ */
+export function cardMatchesRole(c: Card, roleId: string): boolean {
+  if (roleId === 'ALL') return true;
+  const typeLine = (c.type_line || '').toLowerCase();
+  const oracleText = (c.oracle_text || '').toLowerCase();
+
+  switch (roleId) {
+    case 'CREATURE':
+      return Boolean(typeLine.includes('creature') || c.is_creature);
+    case 'INSTANT':
+      return Boolean(typeLine.includes('instant') || oracleText.includes('flash') || c.is_instant_speed);
+    case 'SORCERY':
+      return Boolean(typeLine.includes('sorcery'));
+    case 'ARTIFACT':
+      return Boolean(typeLine.includes('artifact'));
+    case 'ENCHANTMENT':
+      return Boolean(typeLine.includes('enchantment'));
+    case 'TRICK':
+      return Boolean(
+        c.is_combat_trick ||
+          (typeLine.includes('instant') &&
+            !c.is_removal &&
+            (oracleText.includes('+') ||
+              oracleText.includes('target creature gets') ||
+              oracleText.includes('hexproof') ||
+              oracleText.includes('indestructible')))
+      );
+    case 'REMOVAL':
+      return Boolean(
+        c.is_removal ||
+          oracleText.includes('destroy') ||
+          oracleText.includes('exile') ||
+          oracleText.includes('deal') ||
+          oracleText.includes('damage') ||
+          oracleText.includes('-x/-x') ||
+          oracleText.includes('counter target')
+      );
+    case 'LAND':
+      return Boolean(typeLine.includes('land') || c.is_land);
+    default:
+      return true;
+  }
+}
+
+/**
+ * Evaluates whether a card matches the active additive type / role filters (OR union).
+ */
+export function cardMatchesRoleFilter(c: Card, selectedRoles: string[] | string): boolean {
+  const activeRoles = Array.isArray(selectedRoles)
+    ? selectedRoles
+    : typeof selectedRoles === 'string'
+    ? selectedRoles === 'ALL' || !selectedRoles
+      ? ['ALL']
+      : selectedRoles.includes(',')
+      ? selectedRoles.split(',').filter(Boolean)
+      : [selectedRoles]
+    : ['ALL'];
+
+  if (!activeRoles || activeRoles.length === 0 || activeRoles.includes('ALL')) {
+    return true;
+  }
+  return activeRoles.some((roleId) => cardMatchesRole(c, roleId));
+}

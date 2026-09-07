@@ -44,30 +44,37 @@ export interface CardSimilarityResult {
 // In-memory session cache to avoid repeating Scryfall calls for the same card
 const similarityCache = new Map<string, CardSimilarityResult>();
 
-// Known Limited functional effect clauses
-const EFFECT_PATTERNS = [
-  { pattern: /destroy target creature/i, label: 'Creature Removal' },
-  { pattern: /exile target creature/i, label: 'Exile Removal' },
-  { pattern: /deals \d+ damage to (any target|target creature)/i, label: 'Burn / Direct Damage' },
-  { pattern: /counter target (spell|noncreature spell|creature spell)/i, label: 'Counterspell' },
-  { pattern: /draw (a|\d+) cards?/i, label: 'Card Draw' },
-  { pattern: /target creature gets [+-]\d+\/[+-]\d+/i, label: 'Stat Modifier' },
-  { pattern: /create (a|\d+) .* token/i, label: 'Token Creation' },
-  { pattern: /put (a|\d+) \+1\/\+1 counter/i, label: '+1/+1 Counter' },
-  { pattern: /return target .* to its owner's hand/i, label: 'Bounce Effect' },
-  { pattern: /target creature can't (block|attack)/i, label: 'Evasion / Pacifism' },
-  { pattern: /look at the top \d+ cards/i, label: 'Card Selection / Impulse' },
-  { pattern: /when .* enters the battlefield|when .* enters/i, label: 'ETB Ability' },
-  { pattern: /sacrifice/i, label: 'Sacrifice Synergy' },
-  { pattern: /flying/i, label: 'Flying' },
-  { pattern: /lifelink/i, label: 'Lifelink' },
-  { pattern: /deathtouch/i, label: 'Deathtouch' },
-  { pattern: /menace/i, label: 'Menace' },
-  { pattern: /trample/i, label: 'Trample' },
-  { pattern: /vigilance/i, label: 'Vigilance' },
-  { pattern: /haste/i, label: 'Haste' },
-  { pattern: /ward/i, label: 'Ward' },
-  { pattern: /flash/i, label: 'Flash' },
+// Known Limited functional effect clauses with category classification
+export interface EffectPattern {
+  pattern: RegExp;
+  label: string;
+  category: 'removal' | 'damage' | 'counter' | 'draw' | 'selection' | 'trick' | 'bounce' | 'pacifism' | 'token' | 'counters' | 'sweeper' | 'synergy';
+}
+
+const EFFECT_PATTERNS: EffectPattern[] = [
+  { pattern: /destroy target creature/i, label: 'Creature Removal', category: 'removal' },
+  { pattern: /exile target creature/i, label: 'Exile Removal', category: 'removal' },
+  { pattern: /destroy target (permanent|nonland permanent)/i, label: 'Permanent Removal', category: 'removal' },
+  { pattern: /exile target (permanent|nonland permanent)/i, label: 'Exile Permanent', category: 'removal' },
+  { pattern: /deals \d+ damage to (any target|target creature)/i, label: 'Burn / Direct Damage', category: 'damage' },
+  { pattern: /deals \d+ damage to each creature/i, label: 'Board Wipe / Sweeper', category: 'sweeper' },
+  { pattern: /destroy all creatures/i, label: 'Board Wipe / Wrath', category: 'sweeper' },
+  { pattern: /counter target (spell|noncreature spell|creature spell)/i, label: 'Counterspell', category: 'counter' },
+  { pattern: /draw (a|\d+) cards?/i, label: 'Card Draw', category: 'draw' },
+  { pattern: /target creature gets [+-]\d+\/[+-]\d+/i, label: 'Stat Modifier', category: 'trick' },
+  { pattern: /create (a|\d+) .* token/i, label: 'Token Creation', category: 'token' },
+  { pattern: /put (a|\d+) \+1\/\+1 counter/i, label: '+1/+1 Counter', category: 'counters' },
+  { pattern: /return target .* to its owner's hand/i, label: 'Bounce Effect', category: 'bounce' },
+  { pattern: /target creature can't (block|attack)/i, label: 'Pacifism / Lock', category: 'pacifism' },
+  { pattern: /enchanted creature (can't attack|can't block|doesn't untap)/i, label: 'Pacifism Aura', category: 'pacifism' },
+  { pattern: /look at the top \d+ cards/i, label: 'Card Selection / Impulse', category: 'selection' },
+  { pattern: /when .* enters the battlefield|when .* enters/i, label: 'ETB Ability', category: 'synergy' },
+  { pattern: /sacrifice/i, label: 'Sacrifice Synergy', category: 'synergy' },
+];
+
+export const COMBAT_KEYWORDS = [
+  'flying', 'lifelink', 'deathtouch', 'menace', 'trample', 
+  'vigilance', 'haste', 'ward', 'flash', 'reach', 'first strike', 'double strike'
 ];
 
 /**
@@ -78,7 +85,8 @@ export function extractCardFeatures(card: Card) {
   const oracle = (card.oracle_text || '').toLowerCase();
 
   const isCreature = typeLine.includes('creature');
-  const isInstant = typeLine.includes('instant') || (card.keywords || []).some(k => k.toLowerCase() === 'flash');
+  const hasFlash = (card.keywords || []).some(k => k.toLowerCase() === 'flash') || oracle.includes('flash');
+  const isInstant = typeLine.includes('instant') || hasFlash;
   const isSorcery = typeLine.includes('sorcery');
   const isEnchantment = typeLine.includes('enchantment');
   const isArtifact = typeLine.includes('artifact');
@@ -90,25 +98,97 @@ export function extractCardFeatures(card: Card) {
   else if (isArtifact) primaryType = 'artifact';
   else if (isCreature) primaryType = 'creature';
 
-  const detectedClauses: { label: string; raw: string }[] = [];
+  const isCombatTrick = (isInstant || hasFlash) && (
+    /target creature gets [+-]\d+\/[+-]\d+/i.test(oracle) ||
+    /gains (hexproof|indestructible|flying|first strike|lifelink|deathtouch)/i.test(oracle) ||
+    /untap target creature/i.test(oracle)
+  );
+
+  const isAuraRemoval = isEnchantment && (
+    oracle.includes('enchant creature') || oracle.includes('enchant permanent')
+  ) && (
+    oracle.includes("can't attack") || oracle.includes("can't block") || 
+    oracle.includes("doesn't untap") || oracle.includes("exile")
+  );
+
+  const createsTokens = oracle.includes('create') && oracle.includes('token');
+
+  const detectedClauses: { label: string; raw: string; category: string }[] = [];
+  const detectedCategories = new Set<string>();
+
   EFFECT_PATTERNS.forEach((ep) => {
     if (ep.pattern.test(oracle)) {
       const match = oracle.match(ep.pattern);
-      detectedClauses.push({ label: ep.label, raw: match ? match[0] : ep.label });
+      detectedClauses.push({ label: ep.label, raw: match ? match[0] : ep.label, category: ep.category });
+      detectedCategories.add(ep.category);
     }
   });
+
+  if (isAuraRemoval) {
+    detectedCategories.add('removal');
+    detectedCategories.add('pacifism');
+  }
+
+  // Effective CMC accounting for the Instant Speed Tax (-0.75 for instant/flash)
+  const effectiveCmc = (isInstant || hasFlash) ? Math.max(0.5, (card.cmc || 0) - 0.75) : (card.cmc || 0);
 
   return {
     primaryType,
     isCreature,
     isInstant,
     isSorcery,
+    isEnchantment,
+    isArtifact,
+    hasFlash,
+    isCombatTrick,
+    isAuraRemoval,
+    createsTokens,
     detectedClauses,
-    cmc: card.cmc,
+    detectedCategories,
+    cmc: card.cmc || 0,
+    effectiveCmc,
     colors: card.colors.filter(c => c !== 'C'),
-    power: card.power ? parseInt(card.power, 10) : undefined,
-    toughness: card.toughness ? parseInt(card.toughness, 10) : undefined,
+    power: card.power !== undefined ? parseInt(card.power, 10) : undefined,
+    toughness: card.toughness !== undefined ? parseInt(card.toughness, 10) : undefined,
   };
+}
+
+/**
+ * Validates whether two cards are functionally compatible to be compared.
+ * Card type acts as a hard filter / compatibility matrix (0 arbitrary points in score).
+ */
+export function areCardTypesCompatible(target: Card, candidate: Card): boolean {
+  const tFeatures = extractCardFeatures(target);
+  const cFeatures = extractCardFeatures(candidate);
+
+  // 1. Creatures
+  if (tFeatures.isCreature || cFeatures.isCreature) {
+    // A creature can compare to another creature, or to a spell that produces creature tokens
+    return (tFeatures.isCreature && cFeatures.isCreature) ||
+           (tFeatures.isCreature && cFeatures.createsTokens) ||
+           (cFeatures.isCreature && tFeatures.createsTokens);
+  }
+
+  // 2. Non-permanent spells (Instants & Sorceries)
+  const tSpell = tFeatures.isInstant || tFeatures.isSorcery;
+  const cSpell = cFeatures.isInstant || cFeatures.isSorcery;
+
+  if (tSpell && cSpell) {
+    // Combat tricks must match instant speed
+    if (tFeatures.isCombatTrick && !cFeatures.isInstant) return false;
+    if (cFeatures.isCombatTrick && !tFeatures.isInstant) return false;
+    return true;
+  }
+
+  // 3. Aura Removal can compare to Sorcery/Instant removal
+  if (tFeatures.isAuraRemoval && (cSpell || cFeatures.isAuraRemoval)) return true;
+  if (cFeatures.isAuraRemoval && (tSpell || tFeatures.isAuraRemoval)) return true;
+
+  // 4. Artifacts and Enchantments
+  if (tFeatures.isArtifact && cFeatures.isArtifact) return true;
+  if (tFeatures.isEnchantment && cFeatures.isEnchantment) return true;
+
+  return false;
 }
 
 /**
@@ -125,33 +205,46 @@ function buildScryfallQueries(card: Card, features: ReturnType<typeof extractCar
     ? (features.colors.length === 1 ? `c:${features.colors[0]}` : `c<=${features.colors.join('')}`)
     : 'c:c';
 
+  // Cross-pollinate Instants and Sorceries across spell removal/burn/draw
+  let typeFilter = `t:${features.primaryType}`;
+  if (features.isInstant || features.isSorcery || features.isAuraRemoval) {
+    if (features.isCombatTrick) {
+      typeFilter = '(t:instant or o:flash)';
+    } else {
+      typeFilter = '(t:instant or t:sorcery)';
+    }
+  } else if (features.isCreature) {
+    typeFilter = 't:creature';
+  }
+
+  const minCmc = Math.max(1, features.cmc - 1);
+  const maxCmc = features.cmc + 1;
+
   const queries: string[] = [];
 
-  // Strategy 1: High Specificity (Matching Type, CMC exact, Color, and top detected clause)
+  // Strategy 1: High Specificity (Matching functional clause + compatible type + color + CMC window)
   if (features.detectedClauses.length > 0) {
     const topClause = features.detectedClauses[0];
     queries.push(
-      `${baseFilter} ${excludeSelf} t:${features.primaryType} ${colorQuery} cmc=${features.cmc} o:"${topClause.raw}"`
+      `${baseFilter} ${excludeSelf} ${typeFilter} ${colorQuery} cmc>=${minCmc} cmc<=${maxCmc} o:"${topClause.raw}"`
     );
   }
 
-  // Strategy 2: Type + Color + CMC exact + any keyword/clause if available
+  // Strategy 2: Keyword overlap if present
   if (card.keywords && card.keywords.length > 0) {
     queries.push(
-      `${baseFilter} ${excludeSelf} t:${features.primaryType} ${colorQuery} cmc=${features.cmc} o:"${card.keywords[0].toLowerCase()}"`
+      `${baseFilter} ${excludeSelf} ${typeFilter} ${colorQuery} cmc>=${minCmc} cmc<=${maxCmc} o:"${card.keywords[0].toLowerCase()}"`
     );
   }
 
-  // Strategy 3: Type + Color + CMC exact
+  // Strategy 3: Compatible type + exact CMC + color
   queries.push(
-    `${baseFilter} ${excludeSelf} t:${features.primaryType} ${colorQuery} cmc=${features.cmc}`
+    `${baseFilter} ${excludeSelf} ${typeFilter} ${colorQuery} cmc=${features.cmc}`
   );
 
-  // Strategy 4: Type + Color + CMC within +/- 1
-  const minCmc = Math.max(1, features.cmc - 1);
-  const maxCmc = features.cmc + 1;
+  // Strategy 4: Compatible type + CMC within ±1 + color
   queries.push(
-    `${baseFilter} ${excludeSelf} t:${features.primaryType} ${colorQuery} cmc>=${minCmc} cmc<=${maxCmc}`
+    `${baseFilter} ${excludeSelf} ${typeFilter} ${colorQuery} cmc>=${minCmc} cmc<=${maxCmc}`
   );
 
   return queries;
@@ -173,82 +266,192 @@ function tokenizeOracleText(text: string, cardName: string): Set<string> {
 
 /**
  * Compute functional similarity score between 0 and 100%
+ *
+ * Weight Distribution:
+ * - Card Type: 0 pts (Acts as Compatibility Gatekeeper filter)
+ * - Functional Effect & Role: 50 pts (Primary effect clause + keywords + token overlap)
+ * - Speed-Adjusted Effective Mana Cost: 30 pts (Includes the 0.75 Instant Speed Tax)
+ * - Statline & Output Scale: 20 pts (Creature body efficiency or spell magnitude)
  */
 export function calculateCardSimilarity(target: Card, candidate: Card): { score: number; reasons: string[] } {
   const reasons: string[] = [];
-  let score = 0;
 
-  // 1. Primary Type Match (up to 25 pts)
-  const targetType = (target.type_line || '').toLowerCase();
-  const candType = (candidate.type_line || '').toLowerCase();
-  if (
-    (targetType.includes('creature') && candType.includes('creature')) ||
-    (targetType.includes('instant') && candType.includes('instant')) ||
-    (targetType.includes('sorcery') && candType.includes('sorcery')) ||
-    (targetType.includes('enchantment') && candType.includes('enchantment')) ||
-    (targetType.includes('artifact') && candType.includes('artifact'))
-  ) {
-    score += 25;
-    reasons.push('Same card type');
+  // 0. Compatibility Gatekeeper (Prerequisite — 0 points)
+  if (!areCardTypesCompatible(target, candidate)) {
+    return { score: 0, reasons: [] };
   }
 
-  // 2. CMC Proximity (up to 25 pts)
-  const cmcDiff = Math.abs((target.cmc || 0) - (candidate.cmc || 0));
-  if (cmcDiff === 0) {
-    score += 25;
-    reasons.push(`Exact CMC ${target.cmc}`);
-  } else if (cmcDiff === 1) {
-    score += 15;
-    reasons.push('Close CMC (±1)');
-  }
+  const tFeatures = extractCardFeatures(target);
+  const cFeatures = extractCardFeatures(candidate);
 
-  // 3. Statline Match for Creatures (up to 15 pts)
-  if (target.power !== undefined && target.toughness !== undefined && candidate.power !== undefined && candidate.toughness !== undefined) {
-    const pDiff = Math.abs(parseInt(target.power, 10) - parseInt(candidate.power, 10));
-    const tDiff = Math.abs(parseInt(target.toughness, 10) - parseInt(candidate.toughness, 10));
-    if (pDiff === 0 && tDiff === 0) {
-      score += 15;
-      reasons.push(`Exact P/T (${target.power}/${target.toughness})`);
-    } else if (pDiff <= 1 && tDiff <= 1) {
-      score += 8;
-      reasons.push('Comparable P/T ratio');
+  let functionalScore = 0;
+  let cmcScore = 0;
+  let statlineScore = 0;
+
+  // =========================================================================
+  // PILLAR 1: Functional Effect & Role Archetype (up to 50 pts)
+  // =========================================================================
+  // 1a. Core Effect Category Match (up to 32 pts)
+  let bestCategoryMatch = 0;
+  let matchedCategoryLabel = '';
+
+  const CATEGORY_SCORES: Record<string, { pts: number; label: string }> = {
+    removal: { pts: 32, label: 'Matching creature removal effect' },
+    sweeper: { pts: 32, label: 'Matching board wipe effect' },
+    damage: { pts: 30, label: 'Matching direct damage / burn' },
+    counter: { pts: 30, label: 'Matching counterspell effect' },
+    draw: { pts: 28, label: 'Matching card advantage effect' },
+    trick: { pts: 28, label: 'Matching combat trick effect' },
+    pacifism: { pts: 28, label: 'Matching pacifism / lockdown' },
+    bounce: { pts: 26, label: 'Matching bounce tempo effect' },
+    selection: { pts: 24, label: 'Matching card selection effect' },
+    token: { pts: 24, label: 'Matching token creation' },
+    counters: { pts: 22, label: 'Matching counter synergy' },
+    synergy: { pts: 18, label: 'Matching ETB / synergy trigger' },
+  };
+
+  tFeatures.detectedCategories.forEach((cat) => {
+    if (cFeatures.detectedCategories.has(cat)) {
+      const cfg = CATEGORY_SCORES[cat];
+      if (cfg && cfg.pts > bestCategoryMatch) {
+        bestCategoryMatch = cfg.pts;
+        matchedCategoryLabel = cfg.label;
+      }
     }
-  } else if (!targetType.includes('creature') && !candType.includes('creature')) {
-    // For non-creatures, give neutral points to balance formula
-    score += 15;
+  });
+
+  if (bestCategoryMatch > 0) {
+    functionalScore += bestCategoryMatch;
+    reasons.push(matchedCategoryLabel);
+  } else if (tFeatures.isCreature && cFeatures.isCreature) {
+    // Both are creatures without special detected clauses (vanilla / french vanilla)
+    functionalScore += 16;
   }
 
-  // 4. Tokenized Oracle & Keyword Jaccard Overlap (up to 35 pts)
-  const targetTokens = tokenizeOracleText(target.oracle_text || '', target.name);
-  const candTokens = tokenizeOracleText(candidate.oracle_text || '', candidate.name);
-
-  if (targetTokens.size > 0 && candTokens.size > 0) {
-    let intersection = 0;
-    targetTokens.forEach((t) => {
-      if (candTokens.has(t)) intersection++;
-    });
-    const union = new Set([...targetTokens, ...candTokens]).size;
-    const jaccard = union > 0 ? intersection / union : 0;
-    const jaccardPoints = Math.round(jaccard * 35);
-    score += jaccardPoints;
-
-    if (jaccard > 0.3) {
-      reasons.push('Strong rules text overlap');
-    } else if (jaccard > 0.15) {
-      reasons.push('Shared mechanic keywords');
-    }
-  }
-
-  // Shared keywords
-  const sharedKeywords = (target.keywords || []).filter(k => 
+  // 1b. Keyword & Rules Text Overlap (up to 18 pts)
+  const sharedKeywords = (target.keywords || []).filter(k =>
     (candidate.keywords || []).some(ck => ck.toLowerCase() === k.toLowerCase())
   );
   if (sharedKeywords.length > 0) {
+    const kwPoints = Math.min(12, sharedKeywords.length * 6);
+    functionalScore += kwPoints;
     reasons.push(`Shared: ${sharedKeywords.slice(0, 2).join(', ')}`);
   }
 
+  const targetTokens = tokenizeOracleText(target.oracle_text || '', target.name);
+  const candTokens = tokenizeOracleText(candidate.oracle_text || '', candidate.name);
+  if (targetTokens.size > 0 && candTokens.size > 0) {
+    let intersection = 0;
+    targetTokens.forEach(t => { if (candTokens.has(t)) intersection++; });
+    const union = new Set([...targetTokens, ...candTokens]).size;
+    const jaccard = union > 0 ? intersection / union : 0;
+    const jaccardPoints = Math.round(jaccard * 10);
+    functionalScore += jaccardPoints;
+    if (jaccard > 0.25 && !reasons.some(r => r.includes('rules text'))) {
+      reasons.push('High rules text overlap');
+    }
+  }
+
+  functionalScore = Math.min(50, functionalScore);
+
+  // =========================================================================
+  // PILLAR 2: Speed-Adjusted Effective Mana Cost (up to 30 pts)
+  // =========================================================================
+  const effectiveDiff = Math.abs(tFeatures.effectiveCmc - cFeatures.effectiveCmc);
+  const targetIsInstant = tFeatures.isInstant;
+  const candIsInstant = cFeatures.isInstant;
+
+  if (effectiveDiff <= 0.15) {
+    cmcScore = 30;
+    if (targetIsInstant && !candIsInstant) {
+      reasons.push(`Speed-parity (${target.cmc}M instant ≈ ${candidate.cmc}M sorcery)`);
+    } else if (!targetIsInstant && candIsInstant) {
+      reasons.push(`Speed-parity (${target.cmc}M sorcery ≈ ${candidate.cmc}M instant)`);
+    } else {
+      reasons.push(`Exact CMC ${target.cmc}`);
+    }
+  } else if (effectiveDiff <= 0.4) {
+    cmcScore = 27;
+    reasons.push(`Near-identical tempo (±${effectiveDiff.toFixed(1)} mana)`);
+  } else if (effectiveDiff <= 0.85) {
+    cmcScore = 21;
+    if (targetIsInstant !== candIsInstant) {
+      reasons.push(targetIsInstant ? 'Instant speed tax (+0.75 mana)' : 'Sorcery speed discount');
+    } else {
+      reasons.push('Close CMC (±1)');
+    }
+  } else if (effectiveDiff <= 1.35) {
+    cmcScore = 14;
+    reasons.push('Acceptable curve slot (±1)');
+  } else if (effectiveDiff <= 2.0) {
+    cmcScore = 7;
+  } else {
+    cmcScore = 0;
+  }
+
+  // =========================================================================
+  // PILLAR 3: Statline & Output Scale (up to 20 pts)
+  // =========================================================================
+  if (tFeatures.isCreature && cFeatures.isCreature && 
+      tFeatures.power !== undefined && tFeatures.toughness !== undefined &&
+      cFeatures.power !== undefined && cFeatures.toughness !== undefined) {
+    const pDiff = Math.abs(tFeatures.power - cFeatures.power);
+    const tDiff = Math.abs(tFeatures.toughness - cFeatures.toughness);
+    const totalStatDiff = Math.abs((tFeatures.power + tFeatures.toughness) - (cFeatures.power + cFeatures.toughness));
+
+    if (pDiff === 0 && tDiff === 0) {
+      statlineScore = 20;
+      reasons.push(`Exact P/T (${target.power}/${target.toughness})`);
+    } else if (totalStatDiff === 0) {
+      statlineScore = 16;
+      reasons.push(`Equivalent total stats (${tFeatures.power + tFeatures.toughness})`);
+    } else if (totalStatDiff <= 1) {
+      statlineScore = 12;
+      reasons.push('Comparable P/T ratio');
+    } else if (totalStatDiff <= 2) {
+      statlineScore = 6;
+    }
+  } else if (!tFeatures.isCreature && !cFeatures.isCreature) {
+    // Non-creature output scaling (e.g. removal target unrestricted vs conditional, damage amounts)
+    const tOracle = (target.oracle_text || '').toLowerCase();
+    const cOracle = (candidate.oracle_text || '').toLowerCase();
+
+    // Direct damage extraction
+    const tDmg = tOracle.match(/deals (\d+) damage/);
+    const cDmg = cOracle.match(/deals (\d+) damage/);
+    if (tDmg && cDmg) {
+      const dmgDiff = Math.abs(parseInt(tDmg[1], 10) - parseInt(cDmg[1], 10));
+      if (dmgDiff === 0) {
+        statlineScore = 20;
+        reasons.push(`Exact damage (${tDmg[1]} dmg)`);
+      } else if (dmgDiff === 1) {
+        statlineScore = 14;
+        reasons.push('Comparable burn scale (±1 dmg)');
+      } else {
+        statlineScore = 8;
+      }
+    } else if (tFeatures.detectedCategories.has('removal') && cFeatures.detectedCategories.has('removal')) {
+      const tUnrestricted = /destroy target (creature|permanent)|exile target (creature|permanent)/i.test(tOracle);
+      const cUnrestricted = /destroy target (creature|permanent)|exile target (creature|permanent)/i.test(cOracle);
+      if (tUnrestricted && cUnrestricted) {
+        statlineScore = 18;
+        reasons.push('Unrestricted target removal');
+      } else {
+        statlineScore = 14;
+      }
+    } else {
+      // General non-creature baseline parity
+      statlineScore = 15;
+    }
+  } else {
+    // Hybrid (e.g. creature vs token spell)
+    statlineScore = 12;
+  }
+
+  const totalScore = Math.min(100, Math.max(0, functionalScore + cmcScore + statlineScore));
+
   return {
-    score: Math.min(100, Math.max(10, score)),
+    score: totalScore,
     reasons: reasons.slice(0, 3),
   };
 }
@@ -300,11 +503,14 @@ export async function findSimilarCards(targetCard: Card): Promise<CardSimilarity
     }
   }
 
-  // Score candidates against target card
-  const scoredCandidates: { card: Card; score: number; reasons: string[] }[] = candidateCards.map((cand) => {
+  // Score candidates against target card (filtering out incompatible or irrelevant matches)
+  const scoredCandidates: { card: Card; score: number; reasons: string[] }[] = [];
+  for (const cand of candidateCards) {
     const { score, reasons } = calculateCardSimilarity(targetCard, cand);
-    return { card: cand, score, reasons };
-  });
+    if (score >= 20) {
+      scoredCandidates.push({ card: cand, score, reasons });
+    }
+  }
 
   // Sort by highest similarity
   scoredCandidates.sort((a, b) => b.score - a.score);

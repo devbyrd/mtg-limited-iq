@@ -9,7 +9,7 @@ import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, get17La
 import { GradeComparisonCard } from '../UI/GradeComparisonCard';
 import { PlaneswalkerSymbol } from '../UI/PlaneswalkerSymbol';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
-import { ManaColorFilterBar } from '../UI/ManaColorFilterBar';
+import { ManaColorFilterBar, cardMatchesColorFilter, cardMatchesRoleFilter } from '../UI/ManaColorFilterBar';
 import { CardSearchBar } from '../Search/CardSearchBar';
 import { cardMatchesQuery } from '../../services/cardSearchParser';
 import { getWOTCArchetypesForSet, getSignpostsForArchetype, WOTCArchetype } from '../../services/wotcArchetypes';
@@ -44,9 +44,9 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
 }) => {
   const [activeExplorerTab, setActiveExplorerTab] = useState<'cards' | 'archetypes'>('cards');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedColor, setSelectedColor] = useState<string>('ALL');
+  const [selectedColors, setSelectedColors] = useState<string[]>(['ALL']);
   const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
-  const [selectedRole, setSelectedRole] = useState<string>('ALL');
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [sortBy, setSortBy] = useState<'number' | 'name' | 'cmc' | 'winrate'>('number');
   const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null);
@@ -136,44 +136,16 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
         if (!cardMatchesQuery(c, searchQuery, currentSetCode)) return false;
       }
 
-      if (selectedColor !== 'ALL') {
-        if (selectedColor.startsWith('GOLD_')) {
-          const pairCode = selectedColor.replace('GOLD_', '');
-          const c1 = pairCode[0] as MTGColor;
-          const c2 = pairCode[1] as MTGColor;
-          const colors = c.colors || [];
-          if (colors.length < 2 || !colors.includes(c1) || !colors.includes(c2)) return false;
-        } else if (selectedColor.length === 2 && !['ALL', 'GOLD', 'LANDS', 'MULTI', 'COLORLESS'].includes(selectedColor)) {
-          const c1 = selectedColor[0] as MTGColor;
-          const c2 = selectedColor[1] as MTGColor;
-          const cardIdentity = c.color_identity && c.color_identity.length > 0 ? c.color_identity : (c.colors || []);
-          const fitsIdentity = cardIdentity.every((col) => col === c1 || col === c2);
-          if (!fitsIdentity) return false;
-        } else if (selectedColor === 'MULTI' || selectedColor === 'GOLD') {
-          if (c.colors.length <= 1) return false;
-        } else if (selectedColor === 'COLORLESS') {
-          if (c.colors.length > 0 || c.type_line?.toLowerCase().includes('land')) return false;
-        } else if (selectedColor === 'LANDS') {
-          if (!c.type_line?.toLowerCase().includes('land')) return false;
-        } else {
-          if (c.colors.length !== 1 || !c.colors.includes(selectedColor as MTGColor)) return false;
-        }
+      if (!cardMatchesColorFilter(c, selectedColors)) {
+        return false;
       }
 
       if (selectedRarity !== 'ALL' && c.rarity !== selectedRarity) {
         return false;
       }
 
-      if (selectedRole !== 'ALL') {
-        const typeLine = (c.type_line || '').toLowerCase();
-        const oracleText = (c.oracle_text || '').toLowerCase();
-        if (selectedRole === 'CREATURE' && !typeLine.includes('creature') && !c.is_creature) return false;
-        if (selectedRole === 'INSTANT' && !typeLine.includes('instant') && !oracleText.includes('flash') && !c.is_instant_speed) return false;
-        if (selectedRole === 'TRICK' && !typeLine.includes('instant') && !oracleText.includes('flash') && !c.is_combat_trick) return false;
-        if (selectedRole === 'REMOVAL' && !c.is_removal && !oracleText.includes('destroy') && !oracleText.includes('exile') && !oracleText.includes('deal') && !oracleText.includes('damage') && !oracleText.includes('-x/-x') && !oracleText.includes('counter target')) return false;
-        if (selectedRole === 'ENCHANTMENT' && !typeLine.includes('enchantment')) return false;
-        if (selectedRole === 'ARTIFACT' && !typeLine.includes('artifact')) return false;
-        if (selectedRole === 'LAND' && !typeLine.includes('land')) return false;
+      if (!cardMatchesRoleFilter(c, selectedRoles)) {
+        return false;
       }
 
       return true;
@@ -191,7 +163,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
     });
 
     return result;
-  }, [cards, searchQuery, selectedColor, selectedRarity, selectedRole, filterRatedStatus, sortBy, seventeenLandsData, userEvaluations]);
+  }, [cards, searchQuery, selectedColors, selectedRarity, selectedRoles, filterRatedStatus, sortBy, seventeenLandsData, userEvaluations]);
 
   const currentModalIndex = useMemo(() => {
     if (!selectedCardForModal) return -1;
@@ -333,23 +305,31 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
         {/* Filters: Colors, Rarities, Status & Roles */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {/* Mana Color Filter Bar with Official Arena Glow */}
-          <ManaColorFilterBar selectedColor={selectedColor} onSelectColor={setSelectedColor} />
+          <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={setSelectedColors} />
 
           {/* Active Archetype Filter Pill */}
-          {(selectedColor.length === 2 || selectedColor.startsWith('GOLD_')) &&
-            !['ALL', 'GOLD', 'LANDS', 'MULTI', 'COLORLESS'].includes(selectedColor) && (
+          {(() => {
+            const isArchetype =
+              selectedColors.some((s) => s.startsWith('GOLD_')) ||
+              (selectedColors.length === 2 && selectedColors.every((c) => ['W', 'U', 'B', 'R', 'G'].includes(c)));
+            if (!isArchetype) return null;
+            const label = selectedColors.some((s) => s.startsWith('GOLD_'))
+              ? `Gold ${selectedColors.find((s) => s.startsWith('GOLD_'))!.replace('GOLD_', '')}`
+              : selectedColors.join('');
+            return (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-violet-100 dark:bg-violet-950/70 border border-violet-300 dark:border-violet-700/60 text-violet-800 dark:text-violet-200 shadow-xs">
-                <span>Archetype: {selectedColor.startsWith('GOLD_') ? `Gold ${selectedColor.replace('GOLD_', '')}` : selectedColor}</span>
+                <span>Archetype: {label}</span>
                 <button
                   type="button"
-                  onClick={() => setSelectedColor('ALL')}
+                  onClick={() => setSelectedColors(['ALL'])}
                   className="p-0.5 rounded-md hover:bg-violet-200 dark:hover:bg-violet-800 text-violet-600 dark:text-violet-300 cursor-pointer"
                   title="Clear Archetype Filter"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-            )}
+            );
+          })()}
 
           {/* Rarity Pills */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -446,9 +426,19 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             ].map((role) => (
               <button
                 key={role.id}
-                onClick={() => setSelectedRole(role.id)}
+                onClick={() => {
+                  if (role.id === 'ALL') { setSelectedRoles(['ALL']); return; }
+                  const current = selectedRoles.filter(r => r !== 'ALL');
+                  if (current.includes(role.id)) {
+                    const next = current.filter(r => r !== role.id);
+                    setSelectedRoles(next.length === 0 ? ['ALL'] : next);
+                  } else {
+                    setSelectedRoles([...current, role.id]);
+                  }
+                }}
                 className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  selectedRole === role.id
+                  (role.id === 'ALL' && (selectedRoles.includes('ALL') || selectedRoles.length === 0)) ||
+                  (role.id !== 'ALL' && selectedRoles.includes(role.id))
                     ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                 }`}
@@ -465,20 +455,20 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             <span className="font-bold text-slate-800 dark:text-slate-200">
               Displaying <strong className="text-violet-700 dark:text-cyan-300 font-black">{filteredAndSortedCards.length}</strong> of <strong>{cards.length}</strong> cards
             </span>
-            {(selectedColor !== 'ALL' || selectedRarity !== 'ALL' || selectedRole !== 'ALL' || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+            {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
               <span className="text-violet-600 dark:text-cyan-400 font-semibold">
                 (filtered)
               </span>
             )}
           </div>
 
-          {(selectedColor !== 'ALL' || selectedRarity !== 'ALL' || selectedRole !== 'ALL' || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+          {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
             <button
               type="button"
               onClick={() => {
-                setSelectedColor('ALL');
+                setSelectedColors(['ALL']);
                 setSelectedRarity('ALL');
-                setSelectedRole('ALL');
+                setSelectedRoles(['ALL']);
                 setFilterRatedStatus('ALL');
                 setSearchQuery('');
               }}
@@ -813,9 +803,9 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveExplorerTab('cards');
-                        setSelectedColor(archetype.code.toUpperCase());
+                        setSelectedColors(archetype.code.toUpperCase().split(''));
                         setSelectedRarity('ALL');
-                        setSelectedRole('ALL');
+                        setSelectedRoles(['ALL']);
                         setFilterRatedStatus('ALL');
                         setSearchQuery('');
                       }}
@@ -829,9 +819,9 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveExplorerTab('cards');
-                        setSelectedColor('GOLD_' + archetype.code.toUpperCase());
+                        setSelectedColors(['GOLD_' + archetype.code.toUpperCase()]);
                         setSelectedRarity('ALL');
-                        setSelectedRole('ALL');
+                        setSelectedRoles(['ALL']);
                         setFilterRatedStatus('ALL');
                         setSearchQuery('');
                       }}
@@ -927,9 +917,9 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   type="button"
                   onClick={() => {
                     setSearchQuery('');
-                    setSelectedColor('ALL');
+                    setSelectedColors(['ALL']);
                     setSelectedRarity('ALL');
-                    setSelectedRole('ALL');
+                    setSelectedRoles(['ALL']);
                     setFilterRatedStatus('ALL');
                   }}
                   className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 font-bold text-[11px] transition-colors cursor-pointer border border-amber-500/30 shrink-0"

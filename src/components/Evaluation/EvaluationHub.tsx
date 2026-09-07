@@ -23,7 +23,7 @@ import { Trophy, Award, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle,
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
-import { ManaColorFilterBar } from '../UI/ManaColorFilterBar';
+import { ManaColorFilterBar, cardMatchesColorFilter, cardMatchesRoleFilter } from '../UI/ManaColorFilterBar';
 import { CardSearchBar } from '../Search/CardSearchBar';
 import { cardMatchesQuery } from '../../services/cardSearchParser';
 
@@ -78,9 +78,9 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
     return 'grade';
   });
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedColor, setSelectedColor] = useState<string>('ALL');
+  const [selectedColors, setSelectedColors] = useState<string[]>(['ALL']);
   const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
-  const [selectedRole, setSelectedRole] = useState<string>('ALL');
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [comparisonSelectedColor, setComparisonSelectedColor] = useState<string>('ALL');
   const [comparisonVerdictFilter, setComparisonVerdictFilter] = useState<string>('ALL');
@@ -222,33 +222,13 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
         if (!cardMatchesQuery(c, searchQuery, currentSetCode, userEvaluations[evalKey]?.notes)) return false;
       }
 
-      if (selectedColor !== 'ALL') {
-        if (selectedColor === 'MULTI' || selectedColor === 'GOLD') {
-          if (c.colors.length <= 1) return false;
-        } else if (selectedColor === 'COLORLESS') {
-          if (c.colors.length > 0 || c.type_line?.toLowerCase().includes('land')) return false;
-        } else if (selectedColor === 'LANDS') {
-          if (!c.type_line?.toLowerCase().includes('land')) return false;
-        } else {
-          if (c.colors.length !== 1 || !c.colors.includes(selectedColor as MTGColor)) return false;
-        }
-      }
+      if (!cardMatchesColorFilter(c, selectedColors)) return false;
 
       if (selectedRarity !== 'ALL' && c.rarity !== selectedRarity) {
         return false;
       }
 
-      if (selectedRole !== 'ALL') {
-        const typeLine = (c.type_line || '').toLowerCase();
-        const oracleText = (c.oracle_text || '').toLowerCase();
-        if (selectedRole === 'CREATURE' && !typeLine.includes('creature')) return false;
-        if (selectedRole === 'INSTANT' && !typeLine.includes('instant') && !oracleText.includes('flash')) return false;
-        if (selectedRole === 'TRICK' && !typeLine.includes('instant') && !oracleText.includes('flash') && !c.is_combat_trick) return false;
-        if (selectedRole === 'REMOVAL' && !c.is_removal && !oracleText.includes('destroy') && !oracleText.includes('exile') && !oracleText.includes('deal') && !oracleText.includes('damage') && !oracleText.includes('-x/-x') && !oracleText.includes('counter target')) return false;
-        if (selectedRole === 'ENCHANTMENT' && !typeLine.includes('enchantment')) return false;
-        if (selectedRole === 'ARTIFACT' && !typeLine.includes('artifact')) return false;
-        if (selectedRole === 'LAND' && !typeLine.includes('land')) return false;
-      }
+      if (!cardMatchesRoleFilter(c, selectedRoles)) return false;
 
       return true;
     });
@@ -277,7 +257,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
     });
 
     return result;
-  }, [cards, searchQuery, selectedColor, selectedRarity, selectedRole, filterRatedStatus, userEvaluations, cardListSortBy, effective17LandsData]);
+  }, [cards, searchQuery, selectedColors, selectedRarity, selectedRoles, filterRatedStatus, userEvaluations, cardListSortBy, effective17LandsData]);
 
   // Comparison Matrix for Analytics Tab
   const comparisonList = useMemo(() => {
@@ -646,7 +626,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
             {/* Colors, Roles, and Rarities Filter Row */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {/* Mana Color Filter Bar with Official Arena Glow */}
-              <ManaColorFilterBar selectedColor={selectedColor} onSelectColor={setSelectedColor} />
+              <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={setSelectedColors} />
 
               {/* Rarity Filter Pills */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -676,9 +656,19 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                 ].map((role) => (
                   <button
                     key={role.id}
-                    onClick={() => setSelectedRole(role.id)}
+                    onClick={() => {
+                      if (role.id === 'ALL') { setSelectedRoles(['ALL']); return; }
+                      const current = selectedRoles.filter(r => r !== 'ALL');
+                      if (current.includes(role.id)) {
+                        const next = current.filter(r => r !== role.id);
+                        setSelectedRoles(next.length === 0 ? ['ALL'] : next);
+                      } else {
+                        setSelectedRoles([...current, role.id]);
+                      }
+                    }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      selectedRole === role.id
+                      (role.id === 'ALL' && (selectedRoles.includes('ALL') || selectedRoles.length === 0)) ||
+                      (role.id !== 'ALL' && selectedRoles.includes(role.id))
                         ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                     }`}
@@ -695,20 +685,20 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                 <span className="font-bold text-slate-800 dark:text-slate-200">
                   Displaying <strong className="text-violet-700 dark:text-cyan-300 font-black">{filteredCards.length}</strong> of <strong>{cards.length}</strong> cards
                 </span>
-                {(selectedColor !== 'ALL' || selectedRarity !== 'ALL' || selectedRole !== 'ALL' || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+                {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
                   <span className="text-violet-600 dark:text-cyan-400 font-semibold">
                     (filtered)
                   </span>
                 )}
               </div>
 
-              {(selectedColor !== 'ALL' || selectedRarity !== 'ALL' || selectedRole !== 'ALL' || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+              {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedColor('ALL');
+                    setSelectedColors(['ALL']);
                     setSelectedRarity('ALL');
-                    setSelectedRole('ALL');
+                    setSelectedRoles(['ALL']);
                     setFilterRatedStatus('ALL');
                     setSearchQuery('');
                   }}
@@ -1717,9 +1707,9 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
           totalSetCardsCount={cards.length}
           onClearFilter={() => {
             setSearchQuery('');
-            setSelectedColor('ALL');
+            setSelectedColors(['ALL']);
             setSelectedRarity('ALL');
-            setSelectedRole('ALL');
+            setSelectedRoles(['ALL']);
             setFilterRatedStatus('ALL');
           }}
         />

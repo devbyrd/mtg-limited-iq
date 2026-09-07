@@ -4,6 +4,7 @@ import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS, isSetUnderTwo
 import { UserProfileStats, QuizResult, QuizSettings, UserCardEvaluation, Card, SeventeenLandsSetData } from '../types/mtg';
 import { calculateMasteryRank, defaultStats } from '../services/storage';
 import { isAuthentic17LandsDataSet, generateSetSynthesisReport } from '../services/archetypeEvaluator';
+import { calculateCardSimilarity, areCardTypesCompatible } from '../services/cardSimilarity';
 
 console.log('=== MTG Limited IQ Verification Tests ===\n');
 
@@ -333,5 +334,84 @@ console.assert(
   'Must point to /deck_color_data with expansion and format=PremierDraft'
 );
 console.log('   ✓ 17Lands deck color metagame URL verified.');
+
+// Test 9: Speed-Adjusted Card Similarity & Type Compatibility
+console.log('\n[TEST 9] Speed-Adjusted Card Similarity & Type Compatibility:');
+
+const murderInstant: Card = {
+  id: 'mrd-1',
+  name: 'Murder',
+  set: 'DMU',
+  set_name: 'Dominaria United',
+  collector_number: '101',
+  mana_cost: '{1}{B}{B}',
+  cmc: 3,
+  type_line: 'Instant',
+  oracle_text: 'Destroy target creature.',
+  colors: ['B'],
+  color_identity: ['B'],
+  rarity: 'common',
+  keywords: [],
+};
+
+const fellSorcery: Card = {
+  id: 'fl-1',
+  name: 'Fell',
+  set: 'BLB',
+  set_name: 'Bloomburrow',
+  collector_number: '95',
+  mana_cost: '{1}{B}',
+  cmc: 2,
+  type_line: 'Sorcery',
+  oracle_text: 'Destroy target creature.',
+  colors: ['B'],
+  color_identity: ['B'],
+  rarity: 'uncommon',
+  keywords: [],
+};
+
+const vanillaCreature: Card = {
+  id: 'vc-1',
+  name: 'Grizzly Bears',
+  set: 'DMU',
+  set_name: 'Dominaria United',
+  collector_number: '150',
+  mana_cost: '{1}{G}',
+  cmc: 2,
+  type_line: 'Creature — Bear',
+  oracle_text: '',
+  power: '2',
+  toughness: '2',
+  colors: ['G'],
+  color_identity: ['G'],
+  rarity: 'common',
+  keywords: [],
+};
+
+// 1. Instant vs Sorcery Removal Compatibility
+console.assert(
+  areCardTypesCompatible(murderInstant, fellSorcery) === true,
+  'Murder (Instant) and Fell (Sorcery) must be type-compatible non-permanent removal spells'
+);
+
+// 2. Murder (3 CMC Instant) vs Fell (2 CMC Sorcery) Speed Parity Score
+const murderVsFell = calculateCardSimilarity(murderInstant, fellSorcery);
+console.log(`   Murder (3M Instant) vs Fell (2M Sorcery) -> Score: ${murderVsFell.score}%, Reasons:`, murderVsFell.reasons);
+console.assert(murderVsFell.score >= 70, `Expected Murder vs Fell to score >= 70% due to speed parity (got ${murderVsFell.score}%)`);
+console.assert(
+  murderVsFell.reasons.some(r => r.includes('Speed-parity') || r.includes('Instant') || r.includes('tempo')),
+  'Must cite speed parity or tempo equivalent reason'
+);
+
+// 3. Incompatible Types Disqualification
+console.assert(
+  areCardTypesCompatible(murderInstant, vanillaCreature) === false,
+  'Creature and Instant removal must NOT be type-compatible'
+);
+const incompatibleResult = calculateCardSimilarity(murderInstant, vanillaCreature);
+console.assert(incompatibleResult.score === 0, 'Incompatible card types must receive 0% similarity score');
+console.log('   ✓ Incompatible types successfully receive 0% score and disqualification.');
+
+console.log('   ✓ Speed-adjusted similarity & type compatibility gatekeeper verified.');
 
 console.log('\n🎉 ALL LOGIC AND DATA VERIFICATION TESTS PASSED SUCCESSFULLY!');

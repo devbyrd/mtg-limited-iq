@@ -415,45 +415,45 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
           </p>
         </div>
 
-        {/* 4 Pillars of Similarity Grid */}
+        {/* 3 Pillars & Compatibility Gatekeeper Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
           <div className="p-3.5 rounded-2xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800/60 space-y-1.5">
             <div className="flex items-center justify-between font-bold text-violet-900 dark:text-violet-300">
-              <span>1. Type Match</span>
-              <span className="px-1.5 py-0.5 rounded bg-violet-200/60 dark:bg-violet-900/60 text-[10px]">25 Pts</span>
+              <span>Gatekeeper</span>
+              <span className="px-1.5 py-0.5 rounded bg-violet-200/60 dark:bg-violet-900/60 text-[10px]">Prerequisite</span>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-              Creatures match creatures; instants match instants. Ensures combat tricks and removal aren't conflated.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800/60 space-y-1.5">
-            <div className="flex items-center justify-between font-bold text-cyan-900 dark:text-cyan-300">
-              <span>2. CMC Proximity</span>
-              <span className="px-1.5 py-0.5 rounded bg-cyan-200/60 dark:bg-cyan-900/60 text-[10px]">25 Pts</span>
-            </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-              Exact mana value receives full points; ±1 CMC receives partial points. Evaluates curve efficiency.
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
-            <div className="flex items-center justify-between font-bold text-amber-900 dark:text-amber-300">
-              <span>3. Statline Ratio</span>
-              <span className="px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 text-[10px]">15 Pts</span>
-            </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-              For creatures, evaluates power and toughness body efficiency (e.g. 2/2 for 2 vs 3/1 for 2).
+              Card Type is a compatibility filter, not an arbitrary point bucket. Instants &amp; Sorceries compare seamlessly, creatures compare with creatures/tokens, and auras compare with removal.
             </p>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
             <div className="flex items-center justify-between font-bold text-emerald-900 dark:text-emerald-300">
-              <span>4. Oracle Overlap</span>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-[10px]">35 Pts</span>
+              <span>1. Functional Effect</span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-200/60 dark:bg-emerald-900/60 text-[10px]">50 Pts</span>
             </div>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-              Tokenized Jaccard similarity of rules text, identifying removal, card draw, tokens, counters, and keywords.
+              Direct classification of the card's draft job: hard removal, direct burn, card draw, counterspells, combat tricks, and combat keyword synergies.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800/60 space-y-1.5">
+            <div className="flex items-center justify-between font-bold text-cyan-900 dark:text-cyan-300">
+              <span>2. Speed-Adjusted CMC</span>
+              <span className="px-1.5 py-0.5 rounded bg-cyan-200/60 dark:bg-cyan-900/60 text-[10px]">30 Pts</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+              Evaluates tempo curve using the MTG <strong>Instant Speed Tax</strong> (+0.75 mana). A 3-mana Instant (<em>Murder</em>) and 2-mana Sorcery (<em>Fell</em>) achieve direct speed parity.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 space-y-1.5">
+            <div className="flex items-center justify-between font-bold text-amber-900 dark:text-amber-300">
+              <span>3. Statline &amp; Output</span>
+              <span className="px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 text-[10px]">20 Pts</span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+              For creatures, evaluates body efficiency and the Vanilla Test (P/T ratio). For spells, evaluates output magnitude (unrestricted vs conditional targeting, damage scale).
             </p>
           </div>
         </div>
