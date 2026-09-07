@@ -473,17 +473,17 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
           </div>
         </div>
 
-        {/* Right: Clear Ratings, Blind Mode Toggle & Rapid Grader Action */}
+        {/* Right: Clear Grades, Blind Mode Toggle & Rapid Grader Action */}
         <div className="flex items-center gap-2 shrink-0">
           {onClearEvaluationsForSet && ratedCountInSet > 0 && (
             <button
               type="button"
               onClick={() => setIsClearModalOpen(true)}
               className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              title={`Clear all your evaluations for ${currentSetCode.toUpperCase()}`}
+              title={`Clear all your grades for ${currentSetCode.toUpperCase()}`}
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-              <span>Clear Ratings ({ratedCountInSet})</span>
+              <span>Clear Grades ({ratedCountInSet})</span>
             </button>
           )}
 

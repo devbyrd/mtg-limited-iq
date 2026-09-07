@@ -27,7 +27,7 @@ export const App: React.FC = () => {
   // Navigation & Modal State (Parsed from URL query parameters)
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     const params = parseAppUrlParams();
-    return params.tab || 'quiz';
+    return params.tab || 'evaluation';
   });
   const [quizSubTab, setQuizSubTab] = useState<'take' | 'stats'>(() => {
     const params = parseAppUrlParams();

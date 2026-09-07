@@ -54,7 +54,7 @@ export const ClearSetRatingsModal: React.FC<ClearSetRatingsModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
             <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
-              Clear Set Ratings • Step {step} of 3
+              Clear Set Grades • Step {step} of 3
             </h3>
           </div>
           <button
@@ -85,7 +85,7 @@ export const ClearSetRatingsModal: React.FC<ClearSetRatingsModalProps> = ({
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-base font-bold text-slate-900 dark:text-white font-heading">
-                    Clear ratings for {setName}?
+                    Clear grades for {setName}?
                   </h4>
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                     You currently have <strong className="text-amber-600 dark:text-amber-400 font-bold">{ratedCount}</strong> card evaluation{ratedCount === 1 ? '' : 's'} recorded for <span className="font-mono font-bold text-violet-700 dark:text-cyan-300">[{setCode.toUpperCase()}]</span>.
@@ -99,7 +99,7 @@ export const ClearSetRatingsModal: React.FC<ClearSetRatingsModalProps> = ({
                   <span>Selected Set Only Guarantee:</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed pl-6">
-                  This action will <strong className="text-slate-900 dark:text-white">ONLY</strong> remove ratings and notes for <strong className="text-violet-600 dark:text-cyan-300 font-mono">{setCode.toUpperCase()}</strong> cards. Your evaluations for other MTG sets will remain 100% untouched.
+                  This action will <strong className="text-slate-900 dark:text-white">ONLY</strong> remove grades and notes for <strong className="text-violet-600 dark:text-cyan-300 font-mono">{setCode.toUpperCase()}</strong> cards. Your evaluations for other MTG sets will remain 100% untouched.
                 </p>
               </div>
 
@@ -243,7 +243,7 @@ export const ClearSetRatingsModal: React.FC<ClearSetRatingsModalProps> = ({
                     className="px-4 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-500 text-white transition-all flex items-center gap-1.5 shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-wider"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Permanently Clear {setCode.toUpperCase()} Ratings</span>
+                    <span>Permanently Clear {setCode.toUpperCase()} Grades</span>
                   </button>
                 </div>
               </div>
@@ -257,7 +257,7 @@ export const ClearSetRatingsModal: React.FC<ClearSetRatingsModalProps> = ({
                 <Check className="w-6 h-6" />
               </div>
               <h4 className="text-base font-bold text-slate-900 dark:text-white font-heading">
-                All {setCode.toUpperCase()} Ratings Cleared
+                All {setCode.toUpperCase()} Grades Cleared
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {ratedCount} evaluations removed for {setCode.toUpperCase()} only. Other sets remain intact.
