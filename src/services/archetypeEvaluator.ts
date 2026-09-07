@@ -1,5 +1,14 @@
 import { Card, GradeTier, MTGColor, SeventeenLandsSetData, UserCardEvaluation } from '../types/mtg';
-import { GRADE_SCORES, scoreToGradeTier, winRateToGradeTier } from './seventeenLands';
+import {
+  GRADE_SCORES,
+  scoreToGradeTier,
+  winRateToGradeTier,
+  isAuthentic17LandsDataSet,
+  isSetUnderTwoWeeksOld,
+  is17LandsEligibleForSet,
+} from './seventeenLands';
+
+export { isAuthentic17LandsDataSet, isSetUnderTwoWeeksOld, is17LandsEligibleForSet };
 
 export interface ColorStrength {
   color: MTGColor | 'C';
@@ -180,27 +189,6 @@ const TIER_NUM_VAL: Record<'S' | 'A' | 'B' | 'C' | 'D', number> = {
   C: 2,
   D: 1,
 };
-
-export function isAuthentic17LandsDataSet(
-  seventeenLandsData?: SeventeenLandsSetData | null,
-  setCode?: string,
-  cards?: Card[]
-): boolean {
-  if (!seventeenLandsData || (seventeenLandsData.sampleSize || 0) <= 500) return false;
-  if (setCode && seventeenLandsData.setCode && seventeenLandsData.setCode.toUpperCase() !== setCode.toUpperCase()) {
-    return false;
-  }
-  if (cards && cards.length > 0) {
-    const matchingCount = cards.filter((c) => {
-      const match = seventeenLandsData.cards?.[c.name];
-      return match && (match.game_count || 0) > 0 && typeof match.win_rate === 'number';
-    }).length;
-    return matchingCount >= 5;
-  }
-  return Object.values(seventeenLandsData.cards || {}).some(
-    (c) => (c.game_count || 0) > 0 && typeof c.win_rate === 'number'
-  );
-}
 
 export function calculateColorRankings(
   cards: Card[],

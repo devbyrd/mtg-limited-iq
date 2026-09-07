@@ -1,4 +1,5 @@
 import { Card, QuestionCategory, QuizOption, QuizQuestion, QuizSettings, SeventeenLandsSetData } from '../types/mtg';
+import { is17LandsEligibleForSet } from './seventeenLands';
 
 function shuffle<T>(array: T[]): T[] {
   const arr = [...array];
@@ -14,26 +15,58 @@ function getRandomElements<T>(array: T[], count: number, excludePredicate?: (ite
   return shuffle(filtered).slice(0, count);
 }
 
+/**
+ * Intrinsic limited card power heuristic for draft picks when empirical 17Lands data is unavailable or ineligible (< 2 weeks old).
+ */
+function getIntrinsicCardPower(c: Card): number {
+  let score = 50;
+  if (c.rarity === 'mythic') score += 30;
+  else if (c.rarity === 'rare') score += 20;
+  else if (c.rarity === 'uncommon') score += 10;
+
+  if (c.is_removal) score += 15;
+  if ((c.type_line || '').toLowerCase().includes('planeswalker')) score += 20;
+
+  // Good mana curve positioning (2-4 drops)
+  if (c.cmc >= 2 && c.cmc <= 4) score += 5;
+  else if (c.cmc > 6) score -= 5;
+
+  return score;
+}
+
+
 // 1. Pack 1 Pick 1 (P1P1) Draft Priority Choice
-function generateP1P1Question(cards: Card[], landsData: SeventeenLandsSetData | null): QuizQuestion | null {
+function generateP1P1Question(
+  cards: Card[],
+  landsData: SeventeenLandsSetData | null,
+  is17LandsEligible: boolean
+): QuizQuestion | null {
   if (cards.length < 4) return null;
 
-  // Pick 4 distinct cards representing a draft pack
+  // Pick distinct cards representing a draft pack
   const pool = [...cards];
   const sample = getRandomElements(pool, Math.min(12, pool.length));
 
   const sortedByPower = sample.sort((a, b) => {
-    const wrA = landsData?.cards[a.name]?.win_rate || (a.rarity === 'mythic' ? 0.62 : a.rarity === 'rare' ? 0.58 : a.is_removal ? 0.57 : 0.53);
-    const wrB = landsData?.cards[b.name]?.win_rate || (b.rarity === 'mythic' ? 0.62 : b.rarity === 'rare' ? 0.58 : b.is_removal ? 0.57 : 0.53);
-    return wrB - wrA;
+    if (is17LandsEligible && landsData) {
+      const wrA = landsData.cards?.[a.name]?.win_rate;
+      const wrB = landsData.cards?.[b.name]?.win_rate;
+      if (typeof wrA === 'number' && typeof wrB === 'number') {
+        return wrB - wrA;
+      }
+    }
+    // Strict intrinsic limited heuristic when 17Lands is ineligible or unreleased (< 2 weeks old)
+    const scoreA = getIntrinsicCardPower(a);
+    const scoreB = getIntrinsicCardPower(b);
+    return scoreB - scoreA;
   });
 
   const bestCard = sortedByPower[0];
   const packChoices = sortedByPower.slice(0, 4);
 
   const options: QuizOption[] = shuffle(packChoices.map((c) => {
-    const wr = landsData?.cards[c.name]?.win_rate;
-    const wrText = wr ? ` (${(wr * 100).toFixed(1)}% GIH WR)` : '';
+    const wr = is17LandsEligible ? landsData?.cards?.[c.name]?.win_rate : undefined;
+    const wrText = typeof wr === 'number' ? ` (${(wr * 100).toFixed(1)}% GIH WR)` : '';
     const isBest = c.id === bestCard.id;
     return {
       id: c.id,
@@ -43,6 +76,10 @@ function generateP1P1Question(cards: Card[], landsData: SeventeenLandsSetData | 
       isCorrect: isBest,
     };
   }));
+
+  const rationale = (is17LandsEligible && landsData?.cards?.[bestCard.name]?.win_rate)
+    ? `${bestCard.name} boasts a ${(landsData.cards[bestCard.name].win_rate * 100).toFixed(1)}% GIH Win Rate on 17Lands, making it the premier first pick in this pack.`
+    : `${bestCard.name} (${bestCard.mana_cost || 'Cost N/A'}, ${bestCard.type_line}) is the premier P1P1 choice in this pack due to its raw card efficiency, removal/bomb status, and format-defining impact.`;
 
   return {
     id: `p1p1_${bestCard.id}_${Date.now()}_${Math.random()}`,
@@ -58,33 +95,44 @@ function generateP1P1Question(cards: Card[], landsData: SeventeenLandsSetData | 
     },
     options,
     correctAnswer: bestCard.id,
-    explanation: `${bestCard.name} (${bestCard.mana_cost}, ${bestCard.type_line}) is the premier P1P1 choice in this pack due to its superior raw card efficiency and format-defining impact.`,
+    explanation: rationale,
   };
 }
 
 // 2. 17Lands Trap vs Sleeper Identification
-function generateTrapOrSleeperQuestion(cards: Card[], landsData: SeventeenLandsSetData | null): QuizQuestion | null {
-  if (cards.length < 2) return null;
+function generateTrapOrSleeperQuestion(
+  cards: Card[],
+  landsData: SeventeenLandsSetData | null,
+  is17LandsEligible: boolean
+): QuizQuestion | null {
+  // If set is unreleased or < 2 weeks old, or lacks authentic 17Lands telemetry, return null immediately
+  if (!is17LandsEligible || !landsData || cards.length < 2) return null;
+
+  // Filter strictly to cards with authentic 17Lands telemetry
+  const validCards = cards.filter((c) => {
+    const d = landsData.cards?.[c.name];
+    return d && (d.game_count || 0) > 0 && typeof d.win_rate === 'number' && typeof d.avg_seen === 'number';
+  });
+  if (validCards.length === 0) return null;
 
   // Find a card with notable difference between ALSA and GIH WR
-  const candidates = cards.filter(c => {
-    const data = landsData?.cards[c.name];
-    if (!data) return false;
-    // Trap: ALSA < 4.0 but WR < 53%
+  const candidates = validCards.filter((c) => {
+    const data = landsData.cards[c.name];
+    // Trap: ALSA < 4.0 but WR < 53.5%
     const isTrap = data.avg_seen <= 3.8 && data.win_rate < 0.535;
-    // Sleeper: ALSA > 5.5 but WR >= 56.5%
+    // Sleeper: ALSA > 5.2 but WR >= 56.0%
     const isSleeper = data.avg_seen >= 5.2 && data.win_rate >= 0.560;
     return isTrap || isSleeper;
   });
 
   const target = candidates.length > 0
     ? candidates[Math.floor(Math.random() * candidates.length)]
-    : cards[Math.floor(Math.random() * cards.length)];
+    : validCards[Math.floor(Math.random() * validCards.length)];
 
-  const data = landsData?.cards[target.name] || {
-    avg_seen: target.rarity === 'rare' ? 2.5 : 5.8,
-    win_rate: target.is_removal ? 0.585 : 0.515,
-  };
+  const data = landsData.cards[target.name];
+  if (!data || typeof data.avg_seen !== 'number' || typeof data.win_rate !== 'number') {
+    return null;
+  }
 
   const isTrap = data.avg_seen <= 4.0 && data.win_rate < 0.54;
   const wrPercent = (data.win_rate * 100).toFixed(1);
@@ -428,23 +476,35 @@ function generateArchetypeEngineQuestion(cards: Card[]): QuizQuestion | null {
 }
 
 // 9. 17Lands Head-to-Head Win Rate Comparison
-function generateCardEvaluationQuestion(cards: Card[], landsData: SeventeenLandsSetData | null): QuizQuestion | null {
-  if (cards.length < 2) return null;
+function generateCardEvaluationQuestion(
+  cards: Card[],
+  landsData: SeventeenLandsSetData | null,
+  is17LandsEligible: boolean
+): QuizQuestion | null {
+  // If set is unreleased or < 2 weeks old, or lacks authentic 17Lands telemetry, return null immediately
+  if (!is17LandsEligible || !landsData || cards.length < 2) return null;
 
-  const sample = getRandomElements(cards, Math.min(10, cards.length));
+  // Filter strictly to cards with authentic 17Lands telemetry
+  const validCards = cards.filter((c) => {
+    const d = landsData.cards?.[c.name];
+    return d && (d.game_count || 0) > 0 && typeof d.win_rate === 'number';
+  });
+  if (validCards.length < 2) return null;
+
+  const sample = getRandomElements(validCards, Math.min(12, validCards.length));
   let cardA: Card | null = null;
   let cardB: Card | null = null;
-  let ratingA = 0.54;
-  let ratingB = 0.54;
+  let ratingA = 0;
+  let ratingB = 0;
 
   for (let i = 0; i < sample.length; i++) {
     for (let j = i + 1; j < sample.length; j++) {
       const c1 = sample[i];
       const c2 = sample[j];
-      const r1 = landsData?.cards[c1.name]?.win_rate || (c1.rarity === 'rare' ? 0.59 : 0.52);
-      const r2 = landsData?.cards[c2.name]?.win_rate || (c2.rarity === 'rare' ? 0.59 : 0.52);
+      const r1 = landsData.cards[c1.name]?.win_rate;
+      const r2 = landsData.cards[c2.name]?.win_rate;
 
-      if (Math.abs(r1 - r2) >= 0.02) {
+      if (typeof r1 === 'number' && typeof r2 === 'number' && Math.abs(r1 - r2) >= 0.02) {
         cardA = c1;
         cardB = c2;
         ratingA = r1;
@@ -455,16 +515,7 @@ function generateCardEvaluationQuestion(cards: Card[], landsData: SeventeenLands
     if (cardA && cardB) break;
   }
 
-  if (!cardA || !cardB) {
-    if (sample.length >= 2) {
-      cardA = sample[0];
-      cardB = sample[1];
-      ratingA = 0.58;
-      ratingB = 0.51;
-    } else {
-      return null;
-    }
-  }
+  if (!cardA || !cardB) return null;
 
   const aIsBetter = ratingA >= ratingB;
   const bestCard = aIsBetter ? cardA : cardB;
@@ -499,7 +550,8 @@ export function generateQuiz(
   allCards: Card[],
   settings: QuizSettings,
   landsData: SeventeenLandsSetData | null,
-  missedCardIds?: Set<string>
+  missedCardIds?: Set<string>,
+  fallbackReleasedAt?: string
 ): QuizQuestion[] {
   const setCodeUpper = settings.setCode.toUpperCase();
 
@@ -523,23 +575,39 @@ export function generateQuiz(
     }
   }
 
+  // Strict 17Lands Maturity Check (< 2 weeks since release or unreleased = strictly ineligible)
+  const effectiveReleasedAt = settings.releasedAt || fallbackReleasedAt;
+  const is17LandsEligible = is17LandsEligibleForSet(effectiveReleasedAt, landsData, settings.setCode, cardPool);
+
   const trickCards = cardPool.filter(c => c.is_combat_trick);
 
   const generators: Record<QuestionCategory, () => QuizQuestion | null> = {
-    p1p1_pick: () => generateP1P1Question(cardPool, landsData),
-    trap_or_sleeper: () => generateTrapOrSleeperQuestion(cardPool, landsData),
+    p1p1_pick: () => generateP1P1Question(cardPool, landsData, is17LandsEligible),
+    trap_or_sleeper: () => generateTrapOrSleeperQuestion(cardPool, landsData, is17LandsEligible),
     quadrant_role: () => generateQuadrantQuestion(cardPool),
     combat_tricks: () => generateCombatTrickQuestion(cardPool, trickCards),
     instant_speed: () => generateInstantSpeedQuestion(cardPool),
     mana_cost_and_splash: () => generateManaCostAndSplashQuestion(cardPool),
     power_toughness: () => generatePowerToughnessQuestion(cardPool),
     archetype_engine: () => generateArchetypeEngineQuestion(cardPool),
-    card_evaluation: () => generateCardEvaluationQuestion(cardPool, landsData),
+    card_evaluation: () => generateCardEvaluationQuestion(cardPool, landsData, is17LandsEligible),
   };
 
-  const selectedCategories = settings.categories.length > 0
+  const rawSelectedCategories = settings.categories.length > 0
     ? settings.categories
     : (Object.keys(generators) as QuestionCategory[]);
+
+  // Strict exclusion of 17Lands categories when ineligible (< 2 weeks old, unreleased, or no authentic data)
+  const selectedCategories = rawSelectedCategories.filter((cat) => {
+    if (!is17LandsEligible && (cat === 'trap_or_sleeper' || cat === 'card_evaluation')) {
+      return false;
+    }
+    return true;
+  });
+
+  const activeCategories = selectedCategories.length > 0
+    ? selectedCategories
+    : (['p1p1_pick', 'combat_tricks', 'instant_speed', 'quadrant_role'] as QuestionCategory[]);
 
   const questions: QuizQuestion[] = [];
   const targetCount = settings.questionCount > 0 ? settings.questionCount : Math.min(30, cardPool.length);
@@ -547,7 +615,7 @@ export function generateQuiz(
   let attempts = 0;
   while (questions.length < targetCount && attempts < targetCount * 8) {
     attempts++;
-    const cat = selectedCategories[Math.floor(Math.random() * selectedCategories.length)];
+    const cat = activeCategories[Math.floor(Math.random() * activeCategories.length)];
     const gen = generators[cat];
     if (gen) {
       const q = gen();

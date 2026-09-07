@@ -1,6 +1,6 @@
 import { getFallbackCards, POPULAR_LIMITED_SETS } from '../services/scryfall';
 import { generateQuiz } from '../services/quizGenerator';
-import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS } from '../services/seventeenLands';
+import { calculateSetCalibration, winRateToGradeTier, GRADE_TIERS, isSetUnderTwoWeeksOld, is17LandsEligibleForSet } from '../services/seventeenLands';
 import { UserProfileStats, QuizResult, QuizSettings, UserCardEvaluation, Card, SeventeenLandsSetData } from '../types/mtg';
 import { calculateMasteryRank, defaultStats } from '../services/storage';
 import { isAuthentic17LandsDataSet, generateSetSynthesisReport } from '../services/archetypeEvaluator';
@@ -136,5 +136,126 @@ console.assert(unreleasedReport.seventeenLandsBestColor === undefined, 'No best 
 console.assert(unreleasedReport.colorRankings.every(c => c.seventeenLandsAvgWinRate === undefined), 'All color win rates must be undefined');
 console.assert(unreleasedReport.archetypeRankings.every(a => a.seventeenLandsWinRate === undefined), 'All archetype win rates must be undefined');
 console.log('   ✓ Unreleased sets (FRA) correctly reject leaked 17Lands data and yield TBD values.');
+
+// Test 6: Quiz 17Lands Maturity Restriction (< 2 Weeks & Unreleased Sets)
+console.log('\n[PASS] 17Lands Quiz Maturity Guardrails (< 2 Weeks & Unreleased):');
+
+// 6a. Date calculations
+const now = new Date();
+const futureDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const recentDate = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const matureDate = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+console.assert(isSetUnderTwoWeeksOld(futureDate) === true, 'Future date must be flagged as under 2 weeks (unreleased)');
+console.assert(isSetUnderTwoWeeksOld(recentDate) === true, 'Date 5 days ago must be flagged as under 2 weeks');
+console.assert(isSetUnderTwoWeeksOld(matureDate) === false, 'Date 40 days ago must NOT be flagged as under 2 weeks');
+
+// 6b. is17LandsEligibleForSet
+const authenticLandsDataForBLB: SeventeenLandsSetData = {
+  setCode: 'BLB',
+  sampleSize: 15000,
+  updatedAt: '2024-09-01',
+  cards: {
+    'Heartfire Hero': { name: 'Heartfire Hero', win_rate: 0.589, avg_seen: 3.1, game_count: 8500, tier_grade: 'A-' },
+    'Fell': { name: 'Fell', win_rate: 0.605, avg_seen: 1.8, game_count: 9200, tier_grade: 'A' },
+    'Might of the Meek': { name: 'Might of the Meek', win_rate: 0.568, avg_seen: 4.8, game_count: 7300, tier_grade: 'B' },
+    'Warren Warleader': { name: 'Warren Warleader', win_rate: 0.642, avg_seen: 1.2, game_count: 4800, tier_grade: 'A+' },
+    'Shore Up': { name: 'Shore Up', win_rate: 0.548, avg_seen: 5.6, game_count: 6700, tier_grade: 'C+' },
+  },
+};
+
+const testBLBCards: Card[] = [
+  ...blbCards,
+  {
+    id: 'blb-4',
+    name: 'Warren Warleader',
+    set: 'BLB',
+    set_name: 'Bloomburrow',
+    collector_number: '35',
+    mana_cost: '{2}{W}{W}',
+    cmc: 4,
+    type_line: 'Creature — Rabbit Knight',
+    oracle_text: 'Whenever you attack...',
+    colors: ['W'],
+    color_identity: ['W'],
+    rarity: 'mythic',
+    keywords: [],
+    is_creature: true,
+  } as Card,
+  {
+    id: 'blb-5',
+    name: 'Shore Up',
+    set: 'BLB',
+    set_name: 'Bloomburrow',
+    collector_number: '64',
+    mana_cost: '{U}',
+    cmc: 1,
+    type_line: 'Instant',
+    oracle_text: 'Target creature gets +1/+1...',
+    colors: ['U'],
+    color_identity: ['U'],
+    rarity: 'common',
+    keywords: [],
+    is_combat_trick: true,
+    is_instant_speed: true,
+  } as Card,
+];
+
+console.assert(
+  is17LandsEligibleForSet(futureDate, authenticLandsDataForBLB, 'BLB', testBLBCards) === false,
+  'Future release date must make 17Lands questions ineligible'
+);
+console.assert(
+  is17LandsEligibleForSet(recentDate, authenticLandsDataForBLB, 'BLB', testBLBCards) === false,
+  'Recent release date (<14d) must make 17Lands questions ineligible'
+);
+console.assert(
+  is17LandsEligibleForSet(matureDate, authenticLandsDataForBLB, 'BLB', testBLBCards) === true,
+  'Mature release date with authentic data must be eligible'
+);
+
+// 6c. generateQuiz with an unreleased set requesting 17Lands categories
+const unreleasedQuizSettings: QuizSettings = {
+  setCode: 'BLB',
+  setName: 'Bloomburrow',
+  releasedAt: futureDate,
+  questionCount: 20,
+  categories: ['trap_or_sleeper', 'card_evaluation', 'p1p1_pick'],
+  rarities: ['common', 'uncommon', 'rare', 'mythic'],
+  timerSeconds: 0,
+  mode: 'quiz',
+};
+
+const unreleasedQuestions = generateQuiz(testBLBCards, unreleasedQuizSettings, authenticLandsDataForBLB);
+console.assert(
+  unreleasedQuestions.length > 0,
+  'Must still generate questions from eligible non-17Lands categories'
+);
+console.assert(
+  unreleasedQuestions.every(q => q.category !== 'trap_or_sleeper'),
+  'Unreleased set must NEVER generate trap_or_sleeper questions'
+);
+console.assert(
+  unreleasedQuestions.every(q => q.category !== 'card_evaluation'),
+  'Unreleased set must NEVER generate card_evaluation questions'
+);
+console.assert(
+  unreleasedQuestions.every(q => !q.prompt.includes('17Lands') && !q.title.includes('17Lands')),
+  'Unreleased set questions must not reference 17Lands'
+);
+
+// Verify P1P1 cards do not contain (% GIH WR) in description or explanation
+const p1p1Questions = unreleasedQuestions.filter(q => q.category === 'p1p1_pick');
+for (const p1p1 of p1p1Questions) {
+  console.assert(
+    p1p1.options.every(opt => !opt.description?.includes('GIH WR')),
+    'P1P1 for unreleased set must not display GIH WR'
+  );
+  console.assert(
+    !p1p1.explanation.includes('GIH Win Rate'),
+    'P1P1 explanation for unreleased set must not cite 17Lands win rates'
+  );
+}
+console.log('   ✓ Unreleased and < 2-week-old sets strictly exclude 17Lands quiz questions and win rates.');
 
 console.log('\n🎉 ALL LOGIC AND DATA VERIFICATION TESTS PASSED SUCCESSFULLY!');

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { QuestionCategory, QuizMode, QuizSettings, SetInfo, MTGRarity } from '../../types/mtg';
-import { Swords, Zap, Hash, Shield, BookOpen, Sparkles, Trophy, Clock, CheckSquare, Square, Layers, Flame, Wand2, ShieldCheck, Target, AlertTriangle, Scale, GitCompare, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { QuestionCategory, QuizMode, QuizSettings, SetInfo, MTGRarity, SeventeenLandsSetData } from '../../types/mtg';
+import { Swords, Zap, Hash, Shield, BookOpen, Sparkles, Trophy, Clock, CheckSquare, Square, Layers, Flame, Wand2, ShieldCheck, Target, AlertTriangle, Scale, GitCompare, ArrowRight, Lock } from 'lucide-react';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
+import { isSetUnderTwoWeeksOld, isAuthentic17LandsDataSet } from '../../services/seventeenLands';
 
 interface QuizSetupProps {
   currentSet: SetInfo;
@@ -9,6 +10,7 @@ interface QuizSetupProps {
   onOpenSetSelector: () => void;
   availableCardsCount: number;
   missedCardsCount: number;
+  seventeenLandsData?: SeventeenLandsSetData | null;
 }
 
 interface CategoryConfig {
@@ -81,17 +83,41 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
   onOpenSetSelector,
   availableCardsCount,
   missedCardsCount,
+  seventeenLandsData,
 }) => {
-  const [selectedCategories, setSelectedCategories] = useState<QuestionCategory[]>(
-    CATEGORY_CONFIGS.map((c) => c.id)
-  );
+  const isSetUnder2Weeks = useMemo(() => isSetUnderTwoWeeksOld(currentSet.released_at), [currentSet.released_at]);
+  const is17LandsEligible = useMemo(() => {
+    if (isSetUnder2Weeks) return false;
+    return isAuthentic17LandsDataSet(seventeenLandsData, currentSet.code);
+  }, [isSetUnder2Weeks, seventeenLandsData, currentSet.code]);
+
+  const is17LandsCategory = (id: QuestionCategory) => id === 'trap_or_sleeper' || id === 'card_evaluation';
+
+  const eligibleCategoryIds = useMemo(() => {
+    return CATEGORY_CONFIGS
+      .map((c) => c.id)
+      .filter((id) => is17LandsEligible || !is17LandsCategory(id));
+  }, [is17LandsEligible]);
+
+  const [selectedCategories, setSelectedCategories] = useState<QuestionCategory[]>(eligibleCategoryIds);
   const [questionCount, setQuestionCount] = useState<number>(15);
   const [selectedRarities, setSelectedRarities] = useState<MTGRarity[]>(['common', 'uncommon', 'rare', 'mythic']);
   const [timerSeconds, setTimerSeconds] = useState<number>(0);
   const [mode, setMode] = useState<QuizMode>('quiz');
   const [onlyMissedCards, setOnlyMissedCards] = useState<boolean>(false);
 
+  // Automatically deselect 17Lands categories if current set is unreleased or ineligible
+  useEffect(() => {
+    if (!is17LandsEligible) {
+      setSelectedCategories((prev) => {
+        const filtered = prev.filter((cat) => !is17LandsCategory(cat));
+        return filtered.length > 0 ? filtered : ['p1p1_pick', 'combat_tricks'];
+      });
+    }
+  }, [is17LandsEligible, currentSet.code]);
+
   const toggleCategory = (cat: QuestionCategory) => {
+    if (!is17LandsEligible && is17LandsCategory(cat)) return;
     if (selectedCategories.includes(cat)) {
       if (selectedCategories.length === 1) return;
       setSelectedCategories(selectedCategories.filter((c) => c !== cat));
@@ -101,7 +127,7 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
   };
 
   const selectAllCategories = () => {
-    setSelectedCategories(CATEGORY_CONFIGS.map((c) => c.id));
+    setSelectedCategories(eligibleCategoryIds);
   };
 
   const deselectAllCategories = () => {
@@ -118,11 +144,13 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
   };
 
   const handleStart = () => {
+    const finalCategories = selectedCategories.filter((cat) => is17LandsEligible || !is17LandsCategory(cat));
     onStartQuiz({
       setCode: currentSet.code,
       setName: currentSet.name,
+      releasedAt: currentSet.released_at,
       questionCount,
-      categories: selectedCategories,
+      categories: finalCategories.length > 0 ? finalCategories : ['p1p1_pick', 'combat_tricks'],
       rarities: selectedRarities,
       timerSeconds,
       mode,
@@ -154,6 +182,21 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
           <span>Change Set</span>
         </button>
       </div>
+
+      {/* Telemetry Status Notice for Unreleased / Under 2-Week Sets */}
+      {isSetUnder2Weeks && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50/90 dark:bg-[#0f1430] border border-amber-300/80 dark:border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs shadow-xs">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-bold">
+              Recent / Upcoming Set Notice: 17Lands empirical telemetry requires ~2 weeks of draft match volume post-release.
+            </p>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              Categories dependent on win-rate duels and ALSA trap detection are disabled for this set until telemetry matures. Pack 1 Pick 1 utilizes intrinsic card power heuristics, and all mechanic/combat drills remain ready to play.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Missed Cards Drill Notice */}
       {missedCardsCount > 0 && (
@@ -190,7 +233,7 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-violet-600 dark:text-cyan-400" />
               <h2 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                Question Categories ({selectedCategories.length}/{CATEGORY_CONFIGS.length})
+                Question Categories ({selectedCategories.length}/{eligibleCategoryIds.length})
               </h2>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -214,15 +257,20 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {CATEGORY_CONFIGS.map((cat) => {
-              const isSelected = selectedCategories.includes(cat.id);
+              const is17L = is17LandsCategory(cat.id);
+              const isDisabled = is17L && !is17LandsEligible;
+              const isSelected = !isDisabled && selectedCategories.includes(cat.id);
+
               return (
                 <div
                   key={cat.id}
-                  onClick={() => toggleCategory(cat.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between gap-2 shadow-xs ${
-                    isSelected
-                      ? 'bg-violet-50/70 dark:bg-[#090e28] border-violet-500 shadow-xs'
-                      : 'bg-white dark:bg-[#050818]/60 border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100 hover:border-slate-300 dark:hover:border-slate-700'
+                  onClick={() => !isDisabled && toggleCategory(cat.id)}
+                  className={`p-3.5 rounded-xl border select-none transition-all flex flex-col justify-between gap-2 shadow-xs ${
+                    isDisabled
+                      ? 'bg-slate-100/60 dark:bg-[#050818]/40 border-slate-200/80 dark:border-slate-800/50 opacity-60 cursor-not-allowed'
+                      : isSelected
+                      ? 'bg-violet-50/70 dark:bg-[#090e28] border-violet-500 shadow-xs cursor-pointer'
+                      : 'bg-white dark:bg-[#050818]/60 border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -230,15 +278,33 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
                       <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#050818] border border-slate-200 dark:border-slate-700/60">
                         {cat.icon}
                       </div>
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{cat.name}</h3>
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white leading-tight flex items-center gap-1.5 flex-wrap">
+                          <span>{cat.name}</span>
+                          {isDisabled && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 px-1.5 py-0.5 rounded">
+                              <Lock className="w-2.5 h-2.5" />
+                              {isSetUnder2Weeks ? 'Pending 17Lands (~2 wks post-release)' : 'Data Unavailable'}
+                            </span>
+                          )}
+                        </h3>
+                      </div>
                     </div>
-                    {isSelected ? (
+                    {isDisabled ? (
+                      <Lock className="w-4 h-4 text-slate-400 dark:text-slate-600 shrink-0" />
+                    ) : isSelected ? (
                       <CheckSquare className="w-4 h-4 text-violet-600 dark:text-cyan-400 shrink-0" />
                     ) : (
                       <Square className="w-4 h-4 text-slate-400 dark:text-slate-600 shrink-0" />
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{cat.description}</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {isDisabled
+                      ? isSetUnder2Weeks
+                        ? 'Empirical 17Lands telemetry is not available during preview or initial release (~2 weeks post-release required).'
+                        : '17Lands match telemetry is not available for this set.'
+                      : cat.description}
+                  </p>
                 </div>
               );
             })}

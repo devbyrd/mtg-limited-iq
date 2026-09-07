@@ -196,6 +196,7 @@ export interface QuizQuestion {
 export interface QuizSettings {
   setCode: string;
   setName: string;
+  releasedAt?: string;
   questionCount: number; // 5, 10, 15, 20, 0 = all
   categories: QuestionCategory[];
   rarities: MTGRarity[];

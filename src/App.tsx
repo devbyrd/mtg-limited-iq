@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, QuestionCategory, QuizOption, QuizQuestion, QuizResult, QuizSettings, SetInfo, SeventeenLandsSetData, UserCardEvaluation, UserProfileStats, UserAccount } from './types/mtg';
 import { fetchCardsForSet, fetchAllSets, POPULAR_LIMITED_SETS } from './services/scryfall';
-import { fetch17LandsSetData } from './services/seventeenLands';
+import { fetch17LandsSetData, is17LandsEligibleForSet } from './services/seventeenLands';
 import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser, getBlindGradingForSet, setBlindGradingForSet } from './services/storage';
 import { generateQuiz } from './services/quizGenerator';
 import { supabase, isSupabaseConfigured } from './services/supabase';
@@ -244,7 +244,7 @@ export const App: React.FC = () => {
     if (cards.length === 0) return;
 
     const missedKeys = new Set(Object.keys(userStats.missedCards || {}));
-    const generatedQuestions = generateQuiz(cards, settings, seventeenLandsData, missedKeys);
+    const generatedQuestions = generateQuiz(cards, settings, seventeenLandsData, missedKeys, currentSet.released_at);
 
     if (generatedQuestions.length === 0) {
       alert('Not enough cards in this set matching your selected filters. Please adjust question categories or rarities.');
@@ -273,11 +273,25 @@ export const App: React.FC = () => {
 
   const handlePracticeMissedCards = () => {
     if (cards.length === 0) return;
+    const is17Eligible = is17LandsEligibleForSet(currentSet.released_at, seventeenLandsData, currentSet.code, cards);
+    const availableCats: QuestionCategory[] = [
+      'p1p1_pick',
+      'quadrant_role',
+      'combat_tricks',
+      'instant_speed',
+      'mana_cost_and_splash',
+      'power_toughness',
+      'archetype_engine',
+    ];
+    if (is17Eligible) {
+      availableCats.push('trap_or_sleeper', 'card_evaluation');
+    }
     const settings: QuizSettings = {
       setCode: currentSet.code,
       setName: currentSet.name,
+      releasedAt: currentSet.released_at,
       questionCount: 10,
-      categories: ['p1p1_pick', 'trap_or_sleeper', 'quadrant_role', 'combat_tricks', 'instant_speed', 'mana_cost_and_splash', 'power_toughness', 'archetype_engine', 'card_evaluation'],
+      categories: availableCats,
       rarities: ['common', 'uncommon', 'rare', 'mythic'],
       timerSeconds: 0,
       mode: 'quiz',
@@ -423,6 +437,7 @@ export const App: React.FC = () => {
                         onOpenSetSelector={() => setIsSetSelectorOpen(true)}
                         availableCardsCount={cards.length}
                         missedCardsCount={missedCountForCurrentSet}
+                        seventeenLandsData={seventeenLandsData}
                       />
                     )}
 

@@ -79,6 +79,66 @@ export function get17LandsArchetypeUrl(setCode: string): string {
   return `https://www.17lands.com/deck_color_metagame?expansion=${encodeURIComponent(upper)}`;
 }
 
+/**
+ * Checks if a set is unreleased (release date in the future) or was released less than 14 days ago.
+ * 17Lands telemetry takes ~2 weeks of draft match volume post-release to stabilize.
+ */
+export function isSetUnderTwoWeeksOld(releasedAt?: string): boolean {
+  if (!releasedAt) return false;
+  const isoStr = releasedAt.includes('T') ? releasedAt : `${releasedAt}T00:00:00Z`;
+  const releaseTime = new Date(isoStr).getTime();
+  if (isNaN(releaseTime)) return false;
+  const now = Date.now();
+  const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+  // If release date is in the future, (now - releaseTime) < 0 <= twoWeeksMs (returns true)
+  // If release date is within the last 14 days, (now - releaseTime) < 14 days (returns true)
+  return (now - releaseTime) < twoWeeksMs;
+}
+
+/**
+ * Validates whether a given 17Lands dataset is authentic for the targeted set,
+ * verifying set code match, sample size, and matching card records.
+ */
+export function isAuthentic17LandsDataSet(
+  seventeenLandsData?: SeventeenLandsSetData | null,
+  setCode?: string,
+  cards?: Card[]
+): boolean {
+  if (!seventeenLandsData || (seventeenLandsData.sampleSize || 0) <= 500) return false;
+  if (setCode && seventeenLandsData.setCode && seventeenLandsData.setCode.toUpperCase() !== setCode.toUpperCase()) {
+    return false;
+  }
+  if (cards && cards.length > 0) {
+    const matchingCount = cards.filter((c) => {
+      const match = seventeenLandsData.cards?.[c.name];
+      return match && (match.game_count || 0) > 0 && typeof match.win_rate === 'number';
+    }).length;
+    return matchingCount >= Math.min(5, cards.length);
+  }
+  return Object.values(seventeenLandsData.cards || {}).some(
+    (c) => (c.game_count || 0) > 0 && typeof c.win_rate === 'number'
+  );
+}
+
+/**
+ * Strict eligibility check for 17Lands-dependent features (e.g. 17Lands quiz questions, WR duels, trap identification).
+ * A set is ONLY eligible if:
+ * 1. It is NOT unreleased or under 2 weeks old (< 14 days since release date).
+ * 2. It has an authentic, matching 17Lands dataset with verified sample size (> 500 games).
+ */
+export function is17LandsEligibleForSet(
+  releasedAt?: string,
+  landsData?: SeventeenLandsSetData | null,
+  setCode?: string,
+  cards?: Card[]
+): boolean {
+  if (isSetUnderTwoWeeksOld(releasedAt)) {
+    return false;
+  }
+  return isAuthentic17LandsDataSet(landsData, setCode, cards);
+}
+
+
 // Benchmark 17Lands dataset for popular sets
 const PRELOADED_17LANDS_DATA: Record<string, Record<string, Partial<SeventeenLandsCardRating>>> = {
   'SOS': {
