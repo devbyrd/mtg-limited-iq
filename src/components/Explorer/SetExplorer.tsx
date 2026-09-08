@@ -846,7 +846,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#060a1d] shrink-0">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <span className="font-mono text-xs font-bold text-violet-700 dark:text-cyan-300 bg-slate-100 dark:bg-[#050818] px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
-                  {selectedCardForModal.set} #{selectedCardForModal.collector_number}
+                  #{selectedCardForModal.collector_number} {selectedCardForModal.set}
                 </span>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading truncate">
                   {selectedCardForModal.name}
@@ -943,7 +943,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                 <div className="w-[305px] max-w-full mt-2.5 space-y-2">
                   <div className="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400">
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {selectedCardForModal.set.toUpperCase()} #{selectedCardForModal.collector_number} • <span className="capitalize font-normal text-slate-500 dark:text-slate-400">{selectedCardForModal.rarity}</span>
+                      #{selectedCardForModal.collector_number} {selectedCardForModal.set.toUpperCase()} • <span className="capitalize font-normal text-slate-500 dark:text-slate-400">{selectedCardForModal.rarity}</span>
                     </span>
                     <span>CMC {selectedCardForModal.cmc}</span>
                   </div>
