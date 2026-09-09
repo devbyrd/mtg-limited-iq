@@ -1,12 +1,17 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { UserProfileStats, UserCardEvaluation, QuizResult } from '../types/mtg';
-import { loadUserStats, saveUserStats, loadUserEvaluations, saveUserEvaluation } from './storage';
+import { loadUserStats, saveUserStats, loadUserEvaluations } from './storage';
+import { isCloudUUID } from './auth';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'local_only' | 'error';
 
 type SyncListener = (status: SyncStatus) => void;
 const syncListeners: Set<SyncListener> = new Set();
-let currentSyncStatus: SyncStatus = isSupabaseConfigured() ? 'synced' : 'local_only';
+let currentSyncStatus: SyncStatus = !isSupabaseConfigured()
+  ? 'local_only'
+  : typeof navigator !== 'undefined' && !navigator.onLine
+  ? 'offline'
+  : 'synced';
 
 export function getSyncStatus(): SyncStatus {
   return currentSyncStatus;
@@ -25,19 +30,54 @@ function setSyncStatus(status: SyncStatus): void {
   syncListeners.forEach((l) => l(status));
 }
 
+// ==================== REAL-TIME CONNECTIVITY LISTENER ====================
+
+let pendingStatsSync: { userId: string; stats: UserProfileStats } | null = null;
+let evalSyncQueue: Map<string, { userId: string; evaluation: UserCardEvaluation }> = new Map();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    if (!isSupabaseConfigured()) {
+      setSyncStatus('local_only');
+      return;
+    }
+    setSyncStatus('synced');
+    flushPendingSyncs();
+  });
+
+  window.addEventListener('offline', () => {
+    setSyncStatus('offline');
+  });
+}
+
+function flushPendingSyncs(): void {
+  if (pendingStatsSync) {
+    const { userId, stats } = pendingStatsSync;
+    pendingStatsSync = null;
+    queueStatsSync(userId, stats);
+  }
+
+  if (evalSyncQueue.size > 0) {
+    const sampleItem = evalSyncQueue.values().next().value;
+    if (sampleItem) {
+      triggerEvaluationBatchSync(sampleItem.userId);
+    }
+  }
+}
+
 // ==================== DEBOUNCED SYNC ENGINE ====================
 
 let statsSyncTimer: any = null;
-let evalSyncQueue: Map<string, UserCardEvaluation> = new Map();
 let evalSyncTimer: any = null;
 
 export function queueStatsSync(userId: string, stats: UserProfileStats): void {
-  if (!isSupabaseConfigured() || !userId || userId.startsWith('usr_')) {
+  if (!isSupabaseConfigured() || !isCloudUUID(userId)) {
     setSyncStatus('local_only');
     return;
   }
 
-  if (!navigator.onLine) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    pendingStatsSync = { userId, stats };
     setSyncStatus('offline');
     return;
   }
@@ -64,6 +104,7 @@ export function queueStatsSync(userId: string, stats: UserProfileStats): void {
         setSyncStatus('error');
       } else {
         setSyncStatus('synced');
+        pendingStatsSync = null;
       }
     } catch (e) {
       console.warn('Network error while syncing stats:', e);
@@ -73,15 +114,15 @@ export function queueStatsSync(userId: string, stats: UserProfileStats): void {
 }
 
 export function queueEvaluationSync(userId: string, evaluation: UserCardEvaluation): void {
-  if (!isSupabaseConfigured() || !userId || userId.startsWith('usr_')) {
+  if (!isSupabaseConfigured() || !isCloudUUID(userId)) {
     setSyncStatus('local_only');
     return;
   }
 
-  const key = `${evaluation.setCode.toUpperCase()}_${evaluation.cardName}`;
-  evalSyncQueue.set(key, evaluation);
+  const key = `${evaluation.setCode.toUpperCase()}_${evaluation.cardName.toLowerCase()}`;
+  evalSyncQueue.set(key, { userId, evaluation });
 
-  if (!navigator.onLine) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
     setSyncStatus('offline');
     return;
   }
@@ -89,38 +130,48 @@ export function queueEvaluationSync(userId: string, evaluation: UserCardEvaluati
   setSyncStatus('syncing');
   if (evalSyncTimer) clearTimeout(evalSyncTimer);
 
-  evalSyncTimer = setTimeout(async () => {
-    const batch = Array.from(evalSyncQueue.values()).map((item) => ({
-      user_id: userId,
-      set_code: item.setCode.toUpperCase(),
-      card_name: item.cardName,
-      evaluation_json: item,
-      updated_at: new Date().toISOString(),
-    }));
-    evalSyncQueue.clear();
-
-    if (batch.length === 0) return;
-
-    try {
-      const { error } = await supabase.from('card_evaluations').upsert(batch, {
-        onConflict: 'user_id,set_code,card_name',
-      });
-
-      if (error) {
-        console.warn('Failed to sync evaluations to Supabase:', error);
-        setSyncStatus('error');
-      } else {
-        setSyncStatus('synced');
-      }
-    } catch (e) {
-      console.warn('Network error while syncing evaluations:', e);
-      setSyncStatus(navigator.onLine ? 'error' : 'offline');
-    }
+  evalSyncTimer = setTimeout(() => {
+    triggerEvaluationBatchSync(userId);
   }, 1200);
 }
 
+async function triggerEvaluationBatchSync(userId: string): Promise<void> {
+  const itemsToSync = Array.from(evalSyncQueue.values()).filter((item) => item.userId === userId);
+  if (itemsToSync.length === 0) return;
+
+  const batch = itemsToSync.map(({ evaluation }) => ({
+    user_id: userId,
+    set_code: evaluation.setCode.toUpperCase(),
+    card_name: evaluation.cardName,
+    evaluation_json: evaluation,
+    updated_at: new Date().toISOString(),
+  }));
+
+  // Clear synced keys
+  itemsToSync.forEach(({ evaluation }) => {
+    const key = `${evaluation.setCode.toUpperCase()}_${evaluation.cardName.toLowerCase()}`;
+    evalSyncQueue.delete(key);
+  });
+
+  try {
+    const { error } = await supabase.from('card_evaluations').upsert(batch, {
+      onConflict: 'user_id,set_code,card_name',
+    });
+
+    if (error) {
+      console.warn('Failed to sync evaluations to Supabase:', error);
+      setSyncStatus('error');
+    } else {
+      setSyncStatus('synced');
+    }
+  } catch (e) {
+    console.warn('Network error while syncing evaluations:', e);
+    setSyncStatus(navigator.onLine ? 'error' : 'offline');
+  }
+}
+
 export async function queueEvaluationClearForSet(userId: string, setCode: string): Promise<void> {
-  if (!isSupabaseConfigured() || !userId || userId.startsWith('usr_')) {
+  if (!isSupabaseConfigured() || !isCloudUUID(userId)) {
     return;
   }
   try {
@@ -144,7 +195,7 @@ export async function pullRemoteUserData(userId: string): Promise<{
   stats: UserProfileStats | null;
   evaluations: Record<string, UserCardEvaluation>;
 }> {
-  if (!isSupabaseConfigured() || !userId || userId.startsWith('usr_')) {
+  if (!isSupabaseConfigured() || !isCloudUUID(userId)) {
     return { stats: null, evaluations: {} };
   }
 
@@ -188,47 +239,85 @@ export async function pullRemoteUserData(userId: string): Promise<{
   }
 }
 
-export async function migrateLocalDataToCloud(cloudUserId: string, localGuestId: string = 'user_default'): Promise<void> {
-  if (!isSupabaseConfigured() || !cloudUserId || cloudUserId.startsWith('usr_')) {
+export async function migrateLocalDataToCloud(
+  cloudUserId: string,
+  localGuestId: string = 'user_default'
+): Promise<void> {
+  if (!isSupabaseConfigured() || !isCloudUUID(cloudUserId)) {
     return;
   }
 
   try {
     setSyncStatus('syncing');
 
-    // 1. Check local stats
+    // 1. Merge & Upload Stats
     const localStats = loadUserStats(localGuestId);
-    if (localStats.totalQuestions > 0) {
+    if (localStats.totalQuestions > 0 || localStats.xp > 0) {
+      // Pull current remote stats to merge intelligently
+      const { data: remoteRow } = await supabase
+        .from('user_stats')
+        .select('stats_json')
+        .eq('user_id', cloudUserId)
+        .maybeSingle();
+
+      const remoteStats = (remoteRow?.stats_json as UserProfileStats) || null;
+
+      const mergedStats: UserProfileStats = remoteStats
+        ? {
+            ...remoteStats,
+            xp: Math.max(remoteStats.xp, localStats.xp),
+            level: Math.max(remoteStats.level, localStats.level),
+            totalQuizzes: Math.max(remoteStats.totalQuizzes, localStats.totalQuizzes),
+            totalQuestions: Math.max(remoteStats.totalQuestions, localStats.totalQuestions),
+            totalCorrect: Math.max(remoteStats.totalCorrect, localStats.totalCorrect),
+            bestStreak: Math.max(remoteStats.bestStreak, localStats.bestStreak),
+            currentStreak: localStats.currentStreak || remoteStats.currentStreak,
+            overallAccuracy: Math.max(remoteStats.overallAccuracy, localStats.overallAccuracy),
+            missedCards: { ...localStats.missedCards, ...remoteStats.missedCards },
+            sets: { ...localStats.sets, ...remoteStats.sets },
+            recentQuizzes: [
+              ...(remoteStats.recentQuizzes || []),
+              ...(localStats.recentQuizzes || []),
+            ].slice(0, 20),
+            lastActive: new Date().toISOString(),
+          }
+        : localStats;
+
       await supabase.from('user_stats').upsert(
         {
           user_id: cloudUserId,
-          xp: localStats.xp,
-          level: localStats.level,
-          overall_accuracy: localStats.overallAccuracy,
-          stats_json: localStats,
+          xp: mergedStats.xp,
+          level: mergedStats.level,
+          overall_accuracy: mergedStats.overallAccuracy,
+          stats_json: mergedStats,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
       );
-      saveUserStats(localStats, cloudUserId);
+      saveUserStats(mergedStats, cloudUserId);
     }
 
-    // 2. Check local evaluations
+    // 2. Merge & Upload Evaluations
     const localEvals = loadUserEvaluations(localGuestId);
-    const evalEntries = Object.values(localEvals);
-    if (evalEntries.length > 0) {
-      const batch = evalEntries.map((ev) => ({
+    const localEvalEntries = Object.values(localEvals);
+
+    if (localEvalEntries.length > 0) {
+      const batch = localEvalEntries.map((ev) => ({
         user_id: cloudUserId,
         set_code: ev.setCode.toUpperCase(),
         card_name: ev.cardName,
         evaluation_json: ev,
-        updated_at: new Date().toISOString(),
+        updated_at: ev.updatedAt || new Date().toISOString(),
       }));
 
       await supabase.from('card_evaluations').upsert(batch, {
         onConflict: 'user_id,set_code,card_name',
       });
-      localStorage.setItem(`mtg_evaluations_${cloudUserId}`, JSON.stringify(localEvals));
+
+      // Save locally under cloud user ID
+      const existingCloudEvals = loadUserEvaluations(cloudUserId);
+      const mergedEvals = { ...existingCloudEvals, ...localEvals };
+      localStorage.setItem(`mtg_evaluations_${cloudUserId}`, JSON.stringify(mergedEvals));
     }
 
     setSyncStatus('synced');

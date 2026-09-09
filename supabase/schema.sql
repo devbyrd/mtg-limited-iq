@@ -3,6 +3,15 @@
 -- Run this in your Supabase Dashboard -> SQL Editor
 -- ==============================================================================
 
+-- 0. AUTOMATIC UPDATED_AT TRIGGER FUNCTION
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- 1. PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -16,6 +25,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+  DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+  DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+END $$;
+
 CREATE POLICY "Public profiles are viewable by everyone" 
   ON public.profiles FOR SELECT 
   USING (true);
@@ -27,6 +42,12 @@ CREATE POLICY "Users can insert their own profile"
 CREATE POLICY "Users can update their own profile" 
   ON public.profiles FOR UPDATE 
   USING (auth.uid() = id);
+
+-- Profile updated_at trigger
+DROP TRIGGER IF EXISTS on_profiles_updated ON public.profiles;
+CREATE TRIGGER on_profiles_updated
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- 2. USER STATS TABLE
 CREATE TABLE IF NOT EXISTS public.user_stats (
@@ -42,6 +63,12 @@ CREATE TABLE IF NOT EXISTS public.user_stats (
 ALTER TABLE public.user_stats ENABLE ROW LEVEL SECURITY;
 
 -- User Stats Policies
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Users can view their own stats" ON public.user_stats;
+  DROP POLICY IF EXISTS "Users can insert their own stats" ON public.user_stats;
+  DROP POLICY IF EXISTS "Users can update their own stats" ON public.user_stats;
+END $$;
+
 CREATE POLICY "Users can view their own stats" 
   ON public.user_stats FOR SELECT 
   USING (auth.uid() = user_id);
@@ -53,6 +80,12 @@ CREATE POLICY "Users can insert their own stats"
 CREATE POLICY "Users can update their own stats" 
   ON public.user_stats FOR UPDATE 
   USING (auth.uid() = user_id);
+
+-- User Stats updated_at trigger
+DROP TRIGGER IF EXISTS on_user_stats_updated ON public.user_stats;
+CREATE TRIGGER on_user_stats_updated
+  BEFORE UPDATE ON public.user_stats
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- 3. CARD EVALUATIONS TABLE
 CREATE TABLE IF NOT EXISTS public.card_evaluations (
@@ -73,6 +106,13 @@ CREATE INDEX IF NOT EXISTS idx_card_evaluations_user_set
 ALTER TABLE public.card_evaluations ENABLE ROW LEVEL SECURITY;
 
 -- Card Evaluations Policies
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Users can view their own evaluations" ON public.card_evaluations;
+  DROP POLICY IF EXISTS "Users can insert their own evaluations" ON public.card_evaluations;
+  DROP POLICY IF EXISTS "Users can update their own evaluations" ON public.card_evaluations;
+  DROP POLICY IF EXISTS "Users can delete their own evaluations" ON public.card_evaluations;
+END $$;
+
 CREATE POLICY "Users can view their own evaluations" 
   ON public.card_evaluations FOR SELECT 
   USING (auth.uid() = user_id);
@@ -89,6 +129,12 @@ CREATE POLICY "Users can delete their own evaluations"
   ON public.card_evaluations FOR DELETE 
   USING (auth.uid() = user_id);
 
+-- Card Evaluations updated_at trigger
+DROP TRIGGER IF EXISTS on_card_evaluations_updated ON public.card_evaluations;
+CREATE TRIGGER on_card_evaluations_updated
+  BEFORE UPDATE ON public.card_evaluations
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
 -- 4. AUTOMATIC NEW USER INITIALIZATION TRIGGER
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -96,28 +142,32 @@ BEGIN
   -- Insert profile
   INSERT INTO public.profiles (id, display_name, avatar_url)
   VALUES (
-    new.id,
+    NEW.id,
     COALESCE(
-      new.raw_user_meta_data->>'full_name',
-      new.raw_user_meta_data->>'name',
-      new.raw_user_meta_data->>'user_name',
-      split_part(new.email, '@', 1),
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'name',
+      NEW.raw_user_meta_data->>'user_name',
+      split_part(NEW.email, '@', 1),
       'Drafter'
     ),
     COALESCE(
-      new.raw_user_meta_data->>'avatar_url',
-      new.raw_user_meta_data->>'picture',
+      NEW.raw_user_meta_data->>'avatar_url',
+      NEW.raw_user_meta_data->>'picture',
       NULL
     )
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE
+  SET 
+    display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
+    updated_at = timezone('utc'::text, now());
 
   -- Insert default user_stats
   INSERT INTO public.user_stats (user_id, xp, level, overall_accuracy, stats_json)
-  VALUES (new.id, 0, 1, 0, '{}'::jsonb)
+  VALUES (NEW.id, 0, 1, 0, '{}'::jsonb)
   ON CONFLICT (user_id) DO NOTHING;
 
-  RETURN new;
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

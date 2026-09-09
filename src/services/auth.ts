@@ -4,6 +4,11 @@ import { User, Session } from '@supabase/supabase-js';
 
 export type OAuthProvider = 'google' | 'discord' | 'apple' | 'github';
 
+export function isCloudUUID(id?: string | null): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
 export interface AuthState {
   user: UserAccount | null;
   session: Session | null;
@@ -23,17 +28,27 @@ export function supabaseUserToUserAccount(user: User): UserAccount {
     'Drafter';
   const avatarUrl = meta.avatar_url || meta.picture || undefined;
 
-  let mappedProvider: UserAccount['provider'] = 'local';
+  let mappedProvider: UserAccount['provider'] = 'email';
   if (provider === 'google') mappedProvider = 'google';
   else if (provider === 'discord') mappedProvider = 'discord';
   else if (provider === 'apple') mappedProvider = 'apple';
+  else if (provider === 'github') mappedProvider = 'github';
+
+  const avatarColor =
+    provider === 'discord'
+      ? '#5865F2'
+      : provider === 'google'
+      ? '#3b82f6'
+      : provider === 'github'
+      ? '#24292e'
+      : '#8b5cf6';
 
   return {
     id: user.id,
     name,
     email: user.email,
     avatarUrl,
-    avatarColor: provider === 'discord' ? '#5865F2' : provider === 'google' ? '#3b82f6' : '#8b5cf6',
+    avatarColor,
     provider: mappedProvider,
     createdAt: user.created_at,
     lastLoginAt: new Date().toISOString(),
@@ -172,15 +187,15 @@ export async function updateUserProfile(displayName?: string, avatarUrl?: string
     if (authErr) return { error: new Error(authErr.message) };
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    if (user && isCloudUUID(user.id)) {
       await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,
           display_name: displayName,
           avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+        });
     }
 
     return { error: null };

@@ -9,6 +9,7 @@ import {
   signOut,
   updateUserProfile,
   OAuthProvider,
+  isCloudUUID,
 } from '../../services/auth';
 import { migrateLocalDataToCloud, getSyncStatus, subscribeSyncStatus, SyncStatus } from '../../services/cloudSync';
 import {
@@ -47,7 +48,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onRefreshStats,
 }) => {
   const isCloudConfigured = isSupabaseConfigured();
-  const isCloudUser = Boolean(currentUser.email && !currentUser.id.startsWith('usr_') && currentUser.id !== 'user_default');
+  const isCloudUser = Boolean(currentUser.provider !== 'local' || isCloudUUID(currentUser.id));
 
   const [activeTab, setActiveTab] = useState<'oauth' | 'magic_link' | 'password' | 'profile'>(
     isCloudUser ? 'profile' : 'oauth'

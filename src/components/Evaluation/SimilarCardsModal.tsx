@@ -575,11 +575,26 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[10px] border border-slate-200 dark:border-slate-700 capitalize">
                           {targetCard.rarity}
                         </span>
-                        {currentGrade && (
-                          <span className="px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-cyan-300 font-mono text-[10px] border border-violet-200 dark:border-violet-800/60">
-                            Assigned Grade: {currentGrade}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">Rating:</span>
+                          <select
+                            value={currentGrade || ''}
+                            onChange={(e) => {
+                              const newGrade = e.target.value as GradeTier;
+                              if (newGrade && onAdoptGrade) {
+                                onAdoptGrade(targetCard, newGrade);
+                              }
+                            }}
+                            className="px-2 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-300 dark:border-violet-800 font-bold font-mono text-[10px] focus:outline-none focus:ring-2 focus:ring-violet-400 cursor-pointer text-center"
+                          >
+                            <option value="" disabled>Unrated</option>
+                            {GRADE_TIERS.map((tier) => (
+                              <option key={tier} value={tier}>
+                                {tier}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
 

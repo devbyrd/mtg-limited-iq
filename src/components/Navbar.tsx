@@ -202,17 +202,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {currentUser.name}
               </span>
 
+              {/* Visual Sync Badge Pill */}
+              <span
+                className={`hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-tight border ${
+                  syncStatus === 'synced'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                    : syncStatus === 'syncing'
+                    ? 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/60 animate-pulse'
+                    : syncStatus === 'offline'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+                    : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                }`}
+              >
+                {syncStatus === 'synced' && 'Synced ✓'}
+                {syncStatus === 'syncing' && 'Syncing ⟳'}
+                {syncStatus === 'offline' && 'Offline ☁'}
+                {syncStatus === 'local_only' && 'Local 💾'}
+                {syncStatus === 'error' && 'Sync Error ⚠'}
+              </span>
+
               {/* App Version Badge */}
               <span className="hidden sm:inline text-[9px] font-mono text-slate-400 dark:text-slate-600 shrink-0">
                 v{__APP_VERSION__}
               </span>
 
-              {/* Sync Icon Feedback */}
-              {syncStatus === 'syncing' ? (
-                <RefreshCw className="w-3 h-3 text-cyan-500 animate-spin shrink-0" />
-              ) : syncStatus === 'synced' ? (
-                <Check className="w-3 h-3 text-emerald-500 shrink-0 opacity-80" />
-              ) : null}
+              {/* Sync Icon Feedback on Mobile */}
+              <span className="md:hidden">
+                {syncStatus === 'syncing' ? (
+                  <RefreshCw className="w-3 h-3 text-cyan-500 animate-spin shrink-0" />
+                ) : syncStatus === 'synced' ? (
+                  <Check className="w-3 h-3 text-emerald-500 shrink-0 opacity-80" />
+                ) : null}
+              </span>
             </button>
           </div>
         </div>

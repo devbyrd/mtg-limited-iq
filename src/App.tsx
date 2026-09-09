@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, QuestionCategory, QuizOption, QuizQuestion, QuizResult, QuizSettings, SetInfo, SeventeenLandsSetData, UserCardEvaluation, UserProfileStats, UserAccount } from './types/mtg';
 import { fetchCardsForSet, fetchAllSets, POPULAR_LIMITED_SETS } from './services/scryfall';
 import { fetch17LandsSetData, is17LandsEligibleForSet } from './services/seventeenLands';
-import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser, getBlindGradingForSet, setBlindGradingForSet } from './services/storage';
+import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser, setActiveUser, getBlindGradingForSet, setBlindGradingForSet } from './services/storage';
 import { generateQuiz } from './services/quizGenerator';
 import { supabase, isSupabaseConfigured } from './services/supabase';
 import { supabaseUserToUserAccount } from './services/auth';
-import { pullRemoteUserData } from './services/cloudSync';
+import { pullRemoteUserData, migrateLocalDataToCloud } from './services/cloudSync';
 
 // Components
 import { Navbar, ActiveTab } from './components/Navbar';
@@ -105,26 +105,53 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
+    const handleUserSession = async (user: any) => {
+      const cloudUser = supabaseUserToUserAccount(user);
+      setActiveUser(cloudUser);
+      setCurrentUser(cloudUser);
+
+      // 1. Pull existing remote cloud data
+      const { stats, evaluations } = await pullRemoteUserData(cloudUser.id);
+
+      // 2. Check if local guest has progress and cloud is fresh
+      const localStats = loadUserStats('user_default');
+      const localEvals = loadUserEvaluations('user_default');
+      const hasLocalProgress = localStats.totalQuizzes > 0 || Object.keys(localEvals).length > 0;
+
+      if ((!stats || stats.totalQuizzes === 0) && hasLocalProgress) {
+        await migrateLocalDataToCloud(cloudUser.id, 'user_default');
+        const refreshed = await pullRemoteUserData(cloudUser.id);
+        if (refreshed.stats) setUserStats(refreshed.stats);
+        if (refreshed.evaluations && Object.keys(refreshed.evaluations).length > 0) {
+          setUserEvaluations(refreshed.evaluations);
+        }
+      } else {
+        if (stats) setUserStats(stats);
+        if (evaluations && Object.keys(evaluations).length > 0) {
+          setUserEvaluations(evaluations);
+        }
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        const cloudUser = supabaseUserToUserAccount(session.user);
-        setCurrentUser(cloudUser);
-        pullRemoteUserData(cloudUser.id).then(({ stats, evaluations }) => {
-          if (stats) setUserStats(stats);
-          if (evaluations && Object.keys(evaluations).length > 0) setUserEvaluations(evaluations);
-        });
+        handleUserSession(session.user);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const cloudUser = supabaseUserToUserAccount(session.user);
-        setCurrentUser(cloudUser);
-        const { stats, evaluations } = await pullRemoteUserData(cloudUser.id);
-        if (stats) setUserStats(stats);
-        if (evaluations && Object.keys(evaluations).length > 0) setUserEvaluations(evaluations);
+        await handleUserSession(session.user);
       } else if (event === 'SIGNED_OUT') {
-        const guestUser = getActiveUser();
+        const guestUser: UserAccount = {
+          id: 'user_default',
+          name: 'Guest Drafter',
+          avatarColor: '#8b5cf6',
+          provider: 'local',
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        };
+        setActiveUser(guestUser);
         setCurrentUser(guestUser);
         setUserStats(loadUserStats(guestUser.id));
         setUserEvaluations(loadUserEvaluations(guestUser.id));

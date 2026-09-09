@@ -1,0 +1,38 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": {
+        "name": "conventionalcommits",
+        "types": [
+          { "type": "feat",     "section": "✨ Features"          },
+          { "type": "fix",      "section": "🐛 Bug Fixes"         },
+          { "type": "perf",     "section": "⚡ Performance"       },
+          { "type": "refactor", "section": "♻️ Refactors"         },
+          { "type": "docs",     "section": "📖 Documentation"     },
+          { "type": "chore",    "section": "🔧 Chores",  "hidden": true },
+          { "type": "style",    "section": "💄 Styles",  "hidden": true },
+          { "type": "test",     "section": "🧪 Tests",   "hidden": true }
+        ]
+      },
+      "infile": "CHANGELOG.md",
+      "header": "# MTG Limited IQ — Changelog\n\nAll notable changes to this project will be documented here.\n"
+    }
+  },
+  "git": {
+    "commitMessage": "chore: release v${version}",
+    "tagName": "v${version}",
+    "tagAnnotation": "Release v${version}",
+    "push": true,
+    "requireBranch": "main"
+  },
+  "npm": {
+    "publish": false
+  },
+  "github": {
+    "release": false
+  },
+  "hooks": {
+    "after:bump": "npm run build"
+  }
+}
