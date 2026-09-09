@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, GradeTier } from '../../types/mtg';
 import { findSimilarCards, CardSimilarityResult, SimilarCardMatch } from '../../services/cardSimilarity';
-import { get17LandsCardUrl } from '../../services/seventeenLands';
+import { GRADE_TIERS, get17LandsCardUrl } from '../../services/seventeenLands';
 import { CardObfuscator } from '../CardObfuscator';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { SetSymbol } from '../UI/SetSymbol';
@@ -240,9 +240,23 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
 
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-mono">
                     <span className="text-slate-500 dark:text-slate-400">Current Rating:</span>
-                    <span className="font-bold px-2 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-300 dark:border-violet-800">
-                      {currentGrade ? `Me: ${currentGrade}` : 'Unrated'}
-                    </span>
+                    <select
+                      value={currentGrade || ''}
+                      onChange={(e) => {
+                        const newGrade = e.target.value as GradeTier;
+                        if (newGrade && onAdoptGrade) {
+                          onAdoptGrade(targetCard, newGrade);
+                        }
+                      }}
+                      className="px-2 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-300 dark:border-violet-800 font-bold focus:outline-none focus:ring-2 focus:ring-violet-400 cursor-pointer text-center min-w-[70px]"
+                    >
+                      <option value="" disabled>Unrated</option>
+                      {GRADE_TIERS.map((tier) => (
+                        <option key={tier} value={tier}>
+                          {tier}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -480,19 +494,8 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
                     <CardObfuscator
                       card={targetCard}
                       obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
-                      size="sm"
+                      size="lg"
                     />
-                    <div className="mt-2.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-mono text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                      <span className="font-bold uppercase text-violet-700 dark:text-cyan-300">{targetCard.set}</span>
-                      <span>•</span>
-                      <span className="capitalize">{targetCard.rarity}</span>
-                      {targetCard.mana_cost && (
-                        <>
-                          <span>•</span>
-                          <ManaCostRenderer manaCost={targetCard.mana_cost} size="xs" />
-                        </>
-                      )}
-                    </div>
                   </div>
 
                   <div className="flex-1 min-w-0 space-y-3.5 text-xs w-full">
@@ -628,19 +631,8 @@ export const SimilarCardsModal: React.FC<SimilarCardsModalProps> = ({
                     <CardObfuscator
                       card={inspectCardMatch.card}
                       obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
-                      size="sm"
+                      size="lg"
                     />
-                    <div className="mt-2.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-mono text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                      <span className="font-bold uppercase text-emerald-700 dark:text-emerald-300">{inspectCardMatch.card.set}</span>
-                      <span>•</span>
-                      <span className="capitalize">{inspectCardMatch.card.rarity}</span>
-                      {inspectCardMatch.card.mana_cost && (
-                        <>
-                          <span>•</span>
-                          <ManaCostRenderer manaCost={inspectCardMatch.card.mana_cost} size="xs" />
-                        </>
-                      )}
-                    </div>
                   </div>
 
                   <div className="flex-1 min-w-0 space-y-3.5 text-xs w-full">

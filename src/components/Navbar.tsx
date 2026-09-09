@@ -202,6 +202,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {currentUser.name}
               </span>
 
+              {/* App Version Badge */}
+              <span className="hidden sm:inline text-[9px] font-mono text-slate-400 dark:text-slate-600 shrink-0">
+                v{__APP_VERSION__}
+              </span>
+
               {/* Sync Icon Feedback */}
               {syncStatus === 'syncing' ? (
                 <RefreshCw className="w-3 h-3 text-cyan-500 animate-spin shrink-0" />
