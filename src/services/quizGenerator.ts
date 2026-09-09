@@ -533,7 +533,7 @@ function generateCardEvaluationQuestion(
     type: 'head_to_head',
     title: '17Lands Head-to-Head Card Power Duel',
     prompt: `Between these two cards in Limited, which one achieves a higher Game-In-Hand Win Rate (GIH WR) according to 17Lands?`,
-    tacticalContext: `Calibrating perceived card power against empirical win rates prevents drafting overhyped traps.`,
+    tacticalContext: `Comparing perceived card power against 17Lands win rates helps identify overhyped cards.`,
     card: cardA,
     comparisonCard: cardB,
     obfuscation: {

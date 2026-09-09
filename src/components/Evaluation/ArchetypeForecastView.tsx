@@ -163,7 +163,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             </h2>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">
-              <strong className="text-violet-700 dark:text-cyan-300 font-semibold">Note:</strong> This meta analysis is synthesized from <strong className="text-slate-900 dark:text-white">your personal card grades and ratings</strong> {!isBlindGrading && report.has17LandsData ? 'compared with empirical 17Lands draft win rates and benchmarks' : 'into monocolor depth and archetype power rankings'}.
+              <strong className="text-violet-700 dark:text-cyan-300 font-semibold">Note:</strong> This meta analysis is synthesized from <strong className="text-slate-900 dark:text-white">your personal card grades and ratings</strong> {!isBlindGrading && report.has17LandsData ? 'compared with 17Lands draft win rates' : 'into monocolor depth and archetype power rankings'}.
             </p>
           </div>
 
@@ -206,7 +206,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             <div className="flex items-center gap-2.5">
               <EyeOff className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="text-slate-700 dark:text-slate-300">
-                <strong className="text-slate-900 dark:text-white">Grading Mode Active:</strong> 17Lands empirical win rates, rank comparisons, and meta calibration alignment scores are hidden for unbiased draft practice.
+                <strong className="text-slate-900 dark:text-white">Grading Mode Active:</strong> 17Lands win rates, rank comparisons, and meta calibration alignment scores are hidden for unbiased draft practice.
               </span>
             </div>
           </div>
@@ -214,7 +214,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
           <div
             className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-[#0d163a] dark:via-[#0b122e] dark:to-[#0d163a] border border-slate-200 dark:border-cyan-500/40 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             title={`Meta Calibration Formula:
-100% - Total rank discrepancy penalty between your predicted archetype ranks and 17Lands empirical win rate ranks = ${report.metaCalibrationScore}%`}
+100% - Total rank discrepancy penalty between your predicted archetype ranks and 17Lands win rate ranks = ${report.metaCalibrationScore}%`}
           >
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-violet-100 dark:bg-cyan-500/15 border border-violet-200 dark:border-cyan-400/30 text-violet-700 dark:text-cyan-300 shrink-0">
@@ -267,7 +267,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             <div className="flex items-center gap-2.5">
               <Clock className="w-4 h-4 text-amber-500 shrink-0" />
               <span className="text-slate-600 dark:text-slate-400">
-                <strong className="text-slate-900 dark:text-white">17Lands Empirical Metagame: TBD</strong> — {report.setName} is an unreleased set. 17Lands data is available approximately 2 weeks after release.
+                <strong className="text-slate-900 dark:text-white">17Lands Metagame: TBD</strong> — {report.setName} is an unreleased set. 17Lands data is available approximately 2 weeks after release.
               </span>
             </div>
           </div>
@@ -312,7 +312,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
           {!isBlindGrading && (
             <div
               className="pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] font-mono flex items-center justify-between"
-              title={report.has17LandsData && report.seventeenLandsBestColor?.seventeenLandsAvgWinRate !== undefined ? "17Lands Premier Draft Game In Hand Win Rate (GIH WR) for this color" : "17Lands empirical telemetry pending release for this set"}
+              title={report.has17LandsData && report.seventeenLandsBestColor?.seventeenLandsAvgWinRate !== undefined ? "17Lands Premier Draft Game In Hand Win Rate (GIH WR) for this color" : "17Lands data pending release for this set"}
             >
               <span className="text-slate-500 dark:text-slate-400 text-[10px]">17Lands #1 Color:</span>
               {report.has17LandsData && report.seventeenLandsBestColor?.seventeenLandsAvgWinRate !== undefined ? (
@@ -364,7 +364,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
           {!isBlindGrading && (
             <div
               className="pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] font-mono flex items-center justify-between"
-              title={report.has17LandsData && report.seventeenLandsBestArchetype?.seventeenLandsWinRate !== undefined ? "17Lands empirical win rate for this 2-color archetype in Premier Draft" : "17Lands empirical telemetry pending release for this set"}
+              title={report.has17LandsData && report.seventeenLandsBestArchetype?.seventeenLandsWinRate !== undefined ? "17Lands win rate for this 2-color archetype in Premier Draft" : "17Lands data pending release for this set"}
             >
               <span className="text-slate-500 dark:text-slate-400 text-[10px]">17Lands #1 Pair:</span>
               {report.has17LandsData && report.seventeenLandsBestArchetype?.seventeenLandsWinRate !== undefined ? (
@@ -412,7 +412,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
             <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] font-mono flex items-center justify-between text-slate-600 dark:text-slate-300">
               <span className="text-slate-500 dark:text-slate-400 text-[10px]">17Lands Benchmark:</span>
               {report.has17LandsData ? (
-                <span className="text-violet-700 dark:text-cyan-300 font-bold">Empirical GIH WR</span>
+                <span className="text-violet-700 dark:text-cyan-300 font-bold">17Lands GIH WR</span>
               ) : (
                 <span className="text-slate-400 dark:text-slate-500 font-bold">TBD</span>
               )}
@@ -456,7 +456,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
           {!isBlindGrading && (
             <div
               className="pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[11px] font-mono flex items-center justify-between"
-              title={report.has17LandsData && report.seventeenLandsWorstColor?.seventeenLandsAvgWinRate !== undefined ? "17Lands empirical lowest average win rate color in Premier Draft" : "17Lands empirical telemetry pending release for this set"}
+              title={report.has17LandsData && report.seventeenLandsWorstColor?.seventeenLandsAvgWinRate !== undefined ? "17Lands lowest average win rate color in Premier Draft" : "17Lands data pending release for this set"}
             >
               <span className="text-slate-500 dark:text-slate-400 text-[10px]">17Lands Lowest:</span>
               {report.has17LandsData && report.seventeenLandsWorstColor?.seventeenLandsAvgWinRate !== undefined ? (
@@ -569,7 +569,7 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
                 <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
                   <span>17Lands Win Rates</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">• Empirical GIH Win Rate Hierarchy</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">• 17Lands GIH Win Rate Hierarchy</span>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-3.5 overflow-x-auto pb-1 pt-1">
@@ -617,11 +617,11 @@ export const ArchetypeForecastView: React.FC<ArchetypeForecastViewProps> = ({
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
                 <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
                   <span>17Lands Win Rates</span>
-                  <span className="text-amber-600 dark:text-amber-400 font-bold">• Empirical GIH Win Rate Hierarchy: TBD (Unreleased Set)</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">• 17Lands GIH Win Rate Hierarchy: TBD (Unreleased Set)</span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#050818]/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 font-mono flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span>17Lands data is available approximately 2 weeks after release. Empirical color win rates will populate then.</span>
+                  <span>17Lands data is available approximately 2 weeks after release. Color win rates will populate then.</span>
                 </div>
               </div>
             )
@@ -839,7 +839,7 @@ Total evaluation points (${(col.averageScore * col.ratedCards).toFixed(1)}) ÷ $
                       >
                         <div
                           className="text-[9px] uppercase font-mono font-bold text-emerald-600 dark:text-emerald-400 tracking-wider text-right"
-                          title={`17Lands Empirical Archetype Win Rate Formula:\n30% Gold Signpost WR + 35% ${arch.color1Name} WR + 35% ${arch.color2Name} WR = ${(arch.seventeenLandsWinRate * 100).toFixed(1)}% WR`}
+                          title={`17Lands Archetype Win Rate Formula:\n30% Gold Signpost WR + 35% ${arch.color1Name} WR + 35% ${arch.color2Name} WR = ${(arch.seventeenLandsWinRate * 100).toFixed(1)}% WR`}
                         >
                           17Lands
                         </div>
@@ -1072,7 +1072,7 @@ Total evaluation points (${(col.averageScore * col.ratedCards).toFixed(1)}) ÷ $
                   </span>
                 </div>
                 <span className="text-xs text-slate-500 dark:text-slate-400">
-                  {report.has17LandsData && !isBlindGrading ? 'Shaded by color identity • 17Lands empirical benchmarks shown' : 'Synthesized from signpost gold + 2-color mono depth'}
+                  {report.has17LandsData && !isBlindGrading ? 'Shaded by color identity • 17Lands win rates shown' : 'Synthesized from signpost gold + 2-color mono depth'}
                 </span>
               </div>
 

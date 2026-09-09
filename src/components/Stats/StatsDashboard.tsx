@@ -90,7 +90,7 @@ const CATEGORY_DETAILS: Record<QuestionCategory, CategoryDetails> = {
     name: '17Lands Head-to-Head Duel',
     icon: <GitCompare className="w-4 h-4 text-rose-400" />,
     tag: '17Lands Data',
-    description: 'Direct 1v1 comparison of empirical Games-In-Hand Win Rates between two cards from the set.',
+    description: 'Direct 1v1 comparison of Games-In-Hand Win Rates between two cards from the set.',
     whyItMatters: 'Calibrates your subjective card evaluation against millions of real Arena draft games.',
     proTip: 'Look closely at common and uncommon win rates; top uncommons often outperform mediocre rares.',
   },

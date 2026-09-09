@@ -25,24 +25,6 @@ export function lsvScoreToGradeTier(score: number): GradeTier {
 
 // Benchmark LSV Pre-Release Set Review ratings
 const PRELOADED_LSV_DATA: Record<string, Record<string, number>> = {
-  'SOS': {
-    'Pterafractyl': 3.5,
-    'Professor Dellian Fel': 4.5,
-    'Ark of Hunger': 3.5,
-    'Aziza, Mage Tower Captain': 4.0,
-    'Borrowed Knowledge': 2.5,
-    'Quandrix Apprentice': 3.5,
-    'Expressive Iteration': 4.0,
-    'Rip Apart': 3.5,
-    'Killian, Ink Duelist': 4.0,
-    'Dina, Soul Steeper': 3.5,
-    'Rootha, Mercurial Artist': 3.5,
-    'Zimone, Quandrix Prodigy': 3.5,
-    'Lorehold Apprentice': 3.0,
-    'Prismari Apprentice': 3.0,
-    'Silverquill Apprentice': 3.0,
-    'Witherbloom Apprentice': 3.0,
-  },
   'STX': {
     'Expressive Iteration': 4.0,
     'Rip Apart': 3.5,
@@ -113,9 +95,9 @@ const PRELOADED_LSV_DATA: Record<string, Record<string, number>> = {
 
 /**
  * Get LSV pre-release rating for a card.
- * If not explicitly in database, generates an expert-heuristic estimation calibrated to card properties.
+ * Returns null if LSV has not officially rated the card (e.g. unreleased or unreviewed set).
  */
-export function getLsvRatingForCard(card: Card, setCode?: string): LsvCardRating {
+export function getLsvRatingForCard(card: Card, setCode?: string): LsvCardRating | null {
   const setUpper = (setCode || card.set || '').toUpperCase().trim();
   const cardName = card.name.trim();
 
@@ -144,47 +126,6 @@ export function getLsvRatingForCard(card: Card, setCode?: string): LsvCardRating
     }
   }
 
-  // 3. Expert Heuristic Estimation for cards without manual entry
-  let estimatedScore = 2.5; // Baseline C+ / B- playable
-
-  // Rarity weighting
-  if (card.rarity === 'mythic') estimatedScore = 4.0;
-  else if (card.rarity === 'rare') estimatedScore = 3.5;
-  else if (card.rarity === 'uncommon') estimatedScore = 3.0;
-  else estimatedScore = 2.5;
-
-  // Premium removal & efficient interaction
-  if (card.is_removal) {
-    if (card.cmc <= 2) estimatedScore += 1.0;
-    else if (card.cmc <= 3) estimatedScore += 0.5;
-  }
-
-  // Combat tricks & flash
-  if (card.is_combat_trick && card.cmc <= 2) {
-    estimatedScore += 0.5;
-  }
-
-  // Efficient creature stats
-  if (card.power && card.toughness && card.cmc > 0) {
-    const p = parseInt(card.power) || 0;
-    const t = parseInt(card.toughness) || 0;
-    if (p + t >= card.cmc * 2 + 1) {
-      estimatedScore += 0.5;
-    }
-  }
-
-  // High CMC penalization if vanilla
-  if (card.cmc >= 6 && !card.is_removal && card.rarity === 'common') {
-    estimatedScore -= 0.5;
-  }
-
-  // Clamp to 0.0 - 5.0 scale in 0.5 increments
-  const clamped = Math.min(5.0, Math.max(0.5, Math.round(estimatedScore * 2) / 2));
-
-  return {
-    score: clamped,
-    grade: lsvScoreToGradeTier(clamped),
-    verdict: clamped >= 4.5 ? 'Bomb' : clamped >= 3.5 ? 'High Pick' : clamped >= 2.5 ? 'Solid Playable' : clamped >= 1.5 ? 'Filler' : 'Unplayable',
-    isEstimated: true,
-  };
+  // No official review available for this card/set
+  return null;
 }

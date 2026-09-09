@@ -1,5 +1,6 @@
 import { UserProfileStats, QuizResult, UserCardEvaluation, QuestionCategory, SetMasteryStat, UserAccount } from '../types/mtg';
 import { queueStatsSync, queueEvaluationSync, queueEvaluationClearForSet } from './cloudSync';
+import { POPULAR_LIMITED_SETS } from './scryfall';
 
 const USERS_LIST_KEY = 'mtg_users_list_v2';
 const ACTIVE_USER_ID_KEY = 'mtg_active_user_id_v2';
@@ -410,13 +411,45 @@ export function clearUserEvaluationsForSet(setCode: string, userId?: string): Re
 
 // ==================== USER-SCOPED SET PREFERENCES ====================
 
-export function getBlindGradingForSet(setCode: string, userId?: string): boolean {
+export function isSetFullyGraded(setCode: string, totalCardsCount?: number, userId?: string): boolean {
+  try {
+    const activeId = userId || getActiveUser().id;
+    const evals = loadUserEvaluations(activeId);
+    const prefix = `${setCode.toLowerCase()}_`;
+    const setEvals = Object.keys(evals).filter(
+      k => k.startsWith(prefix) || evals[k].setCode?.toLowerCase() === setCode.toLowerCase()
+    );
+
+    // If total card count is provided, check if graded count matches or exceeds total cards
+    if (typeof totalCardsCount === 'number' && totalCardsCount > 0) {
+      return setEvals.length >= totalCardsCount;
+    }
+
+    // Check popular limited sets metadata for card count
+    const popularMatch = POPULAR_LIMITED_SETS.find(s => s.code.toUpperCase() === setCode.toUpperCase());
+    if (popularMatch && popularMatch.card_count > 0) {
+      return setEvals.length >= popularMatch.card_count;
+    }
+
+    // If totalCardsCount is unknown, assume incomplete unless user has graded a substantial full set (> 250 cards)
+    return setEvals.length >= 250;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function getBlindGradingForSet(setCode: string, userId?: string, totalCardsCount?: number): boolean {
   try {
     const activeId = userId || getActiveUser().id;
     const raw = localStorage.getItem(`mtg_blind_grading_${activeId}_${setCode.toUpperCase()}`);
-    return raw !== null ? JSON.parse(raw) : false;
+    if (raw !== null) {
+      return JSON.parse(raw);
+    }
+    // Default to "blind mode" (Grading Mode: true) until a set is fully graded
+    const fullyGraded = isSetFullyGraded(setCode, totalCardsCount, activeId);
+    return !fullyGraded;
   } catch (e) {
-    return false;
+    return true; // Default to blind mode
   }
 }
 

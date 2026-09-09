@@ -16,10 +16,11 @@ import { getBlindGradingForSet, setBlindGradingForSet } from '../../services/sto
 import { getLsvRatingForCard } from '../../services/lsvRatings';
 import { CardObfuscator } from '../CardObfuscator';
 import { QuickRateModal } from './QuickRateModal';
+import { SimilarCardsModal } from './SimilarCardsModal';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
 import { ArchetypeForecastView } from './ArchetypeForecastView';
 import { MethodologyGuideView } from './MethodologyGuideView';
-import { Trophy, Award, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2, Target } from 'lucide-react';
+import { Trophy, Award, Filter, Search, Zap, Check, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown, ChevronRight, BarChart2, ShieldCheck, FileText, Eye, EyeOff, Scale, BookOpen, Activity, Calculator, ChevronDown, ChevronUp, X, Trash2, Target, PlayingCardsFan } from 'lucide-react';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
@@ -85,6 +86,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
   const [comparisonSelectedColor, setComparisonSelectedColor] = useState<string>('ALL');
   const [comparisonVerdictFilter, setComparisonVerdictFilter] = useState<string>('ALL');
   const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null);
+  const [similarCardsModalCard, setSimilarCardsModalCard] = useState<Card | null>(null);
   const [cardListSortBy, setCardListSortBy] = useState<'number' | 'name' | 'color' | 'rarity' | 'winrate'>('number');
   const [comparisonSortBy, setComparisonSortBy] = useState<'number' | 'delta_desc' | 'delta_asc' | 'winrate' | 'name'>('number');
   const [showMathExplainer, setShowMathExplainer] = useState<boolean>(false);
@@ -174,13 +176,13 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
 
   // Blind grading state persisted per set in local storage (or controlled by parent)
   const [internalBlindGrading, setInternalBlindGrading] = useState<boolean>(() => {
-    return getBlindGradingForSet(currentSetCode);
+    return getBlindGradingForSet(currentSetCode, undefined, cards.length);
   });
 
   // Sync internal blind grading preference when set changes
   useEffect(() => {
-    setInternalBlindGrading(getBlindGradingForSet(currentSetCode));
-  }, [currentSetCode]);
+    setInternalBlindGrading(getBlindGradingForSet(currentSetCode, undefined, cards.length));
+  }, [currentSetCode, cards.length]);
 
   const isBlindGrading = propIsBlindGrading !== undefined ? propIsBlindGrading : internalBlindGrading;
 
@@ -615,7 +617,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                       ? 'bg-emerald-600 text-white shadow-xs border border-emerald-400'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 bg-transparent border border-transparent'
                   }`}
-                  title="Toggle 17Lands empirical draft data"
+                  title="Toggle 17Lands draft data"
                 >
                   {show17L && <Check className="w-3 h-3 text-white" />}
                   <span>17L</span>
@@ -751,10 +753,10 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 {showLsv && (
                                   <div
                                     className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
-                                    title={!hasUserGrade ? 'Rate the card to see how you compare' : (isBlindGrading ? 'LSV Rating (hidden in grading mode)' : `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}`)}
+                                    title={!hasUserGrade ? 'Rate the card to see how you compare' : (isBlindGrading ? 'LSV Rating (hidden in grading mode)' : lsvRating ? `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}` : 'LSV Review pending (set not yet rated)')}
                                   >
                                     <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
-                                    <span className="text-[11px] font-black text-amber-200">{!hasUserGrade || isBlindGrading ? '—' : lsvRating.grade}</span>
+                                    <span className="text-[11px] font-black text-amber-200">{!hasUserGrade || isBlindGrading ? '—' : (lsvRating ? lsvRating.grade : '—')}</span>
                                   </div>
                                 )}
 
@@ -861,7 +863,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                           })() : (
                             <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
                               <span>17Lands: <strong className="text-amber-600 dark:text-amber-400">Data TBD</strong></span>
-                              <span className="italic">Telemetry pending</span>
+                              <span className="italic">Data pending</span>
                             </div>
                           )}
 
@@ -870,8 +872,8 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                             const lsvRating = getLsvRatingForCard(card);
                             return (
                               <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60 font-mono">
-                                <span>LSV: <strong>{lsvRating.score.toFixed(1)} / 5.0</strong></span>
-                                <span className="italic truncate font-sans">{lsvRating.verdict || 'Playable'}</span>
+                                <span>LSV: <strong>{lsvRating ? `${lsvRating.score.toFixed(1)} / 5.0` : 'Pending'}</strong></span>
+                                <span className="italic truncate font-sans">{lsvRating?.verdict || 'Review pending'}</span>
                               </div>
                             );
                           })()}
@@ -886,6 +888,21 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Find Similar Cards Icon Button - Sitting right above the HR lined up with F */}
+                  <div className="flex justify-end -mb-2 z-10">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSimilarCardsModalCard(card);
+                      }}
+                      className="p-1 rounded-md text-slate-400 hover:text-violet-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                      title="Find similar cards (Precedent Engine)"
+                    >
+                      <PlayingCardsFan className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   {/* Quick Grade Selector Bar */}
@@ -974,7 +991,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-w-md mx-auto">
-                17Lands data is available approximately 2 weeks after release. Once empirical match telemetry is recorded, this tab will activate to calibrate your evaluations against live Game-In-Hand win rates.
+                17Lands data is available approximately 2 weeks after release. Once match data is recorded, this tab will activate to compare your evaluations against live Game-In-Hand win rates.
               </p>
             </div>
             <button
@@ -1055,7 +1072,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
                 <div
                   className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#050818] border border-emerald-200 dark:border-emerald-500/30 text-center"
-                  title="Cards where your assigned grade exactly matched 17Lands empirical grade (0 steps off)"
+                  title="Cards where your assigned grade exactly matched 17Lands grade (0 steps off)"
                 >
                   <span className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{calibrationSummary.exactMatches}</span>
                   <p className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold mt-0.5">
@@ -1544,6 +1561,10 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                                 <span className="font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 w-fit">
                                   —
                                 </span>
+                              ) : !lsvRating ? (
+                                <span className="text-slate-400 dark:text-slate-500 font-mono text-xs italic">
+                                  Pending
+                                </span>
                               ) : (
                                 <span
                                   className="font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 w-fit"
@@ -1729,6 +1750,27 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
         />
       )}
 
+      {/* Similar Cards Modal (Precedent Engine) */}
+      {similarCardsModalCard && (
+        <SimilarCardsModal
+          isOpen={Boolean(similarCardsModalCard)}
+          onClose={() => setSimilarCardsModalCard(null)}
+          targetCard={similarCardsModalCard}
+          currentGrade={userEvaluations[`${similarCardsModalCard.set.toLowerCase()}_${similarCardsModalCard.name.toLowerCase()}`]?.userGrade}
+          target17LandsData={
+            effective17LandsData?.cards?.[similarCardsModalCard.name]
+              ? {
+                  winRate: effective17LandsData.cards[similarCardsModalCard.name].win_rate,
+                  alsa: effective17LandsData.cards[similarCardsModalCard.name].avg_seen,
+                  tierGrade: effective17LandsData.cards[similarCardsModalCard.name].tier_grade as GradeTier,
+                }
+              : undefined
+          }
+          onAdoptGrade={(targetCard, grade) => {
+            handleQuickGrade(targetCard, grade);
+          }}
+        />
+      )}
 
     </div>
   );

@@ -36,8 +36,8 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
   const tierDelta = (userIndex >= 0 && actualIndex >= 0) ? actualIndex - userIndex : 0;
 
   // Gap calculation (Me vs LSV)
-  const lsvIndex = gradeTierToIndex(lsvRating.grade);
-  const lsvDelta = userIndex >= 0 ? lsvIndex - userIndex : 0;
+  const lsvIndex = lsvRating ? gradeTierToIndex(lsvRating.grade) : -1;
+  const lsvDelta = (userIndex >= 0 && lsvIndex >= 0) ? lsvIndex - userIndex : 0;
 
   const getDeltaBadge = () => {
     if (!userGrade) {
@@ -120,19 +120,14 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
   const visibleColumnsCount = 1 + (showLsv ? 1 : 0) + (show17L ? 1 : 0);
 
   return (
-    <div className={`p-4 rounded-2xl bg-white dark:bg-[#050818] border border-slate-200 dark:border-slate-800 shadow-sm space-y-3.5 ${className}`}>
+    <div className={`p-3 rounded-xl bg-white dark:bg-[#050818] border border-slate-200 dark:border-slate-800 shadow-xs space-y-2.5 ${className}`}>
       {/* Header & Delta Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800/80">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Scale className="w-4 h-4 text-violet-600 dark:text-cyan-400 shrink-0" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 font-mono">
-              Evaluation vs 17Lands
-            </h4>
-          </div>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-            Compare your grade against 17Lands win rates and LSV's review
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800/80">
+        <div className="flex items-center gap-2">
+          <Scale className="w-3.5 h-3.5 text-violet-600 dark:text-cyan-400 shrink-0" />
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 font-mono">
+            Evaluation vs 17Lands
+          </h4>
         </div>
         <div className="flex items-center gap-1">
           {getDeltaBadge()}
@@ -140,9 +135,9 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
       </div>
 
       {/* Dynamic Multi-Column Triangulation Grid */}
-      <div className={`grid gap-3 ${visibleColumnsCount === 3 ? 'grid-cols-1 sm:grid-cols-3' : visibleColumnsCount === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className={`grid gap-2.5 ${visibleColumnsCount === 3 ? 'grid-cols-1 sm:grid-cols-3' : visibleColumnsCount === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {/* 1. ME Column (Always Visible) */}
-        <div className="p-3 rounded-xl bg-violet-50/60 dark:bg-violet-950/25 border-2 border-violet-300 dark:border-violet-500/40 space-y-1 shadow-xs">
+        <div className="p-2.5 rounded-xl bg-violet-50/60 dark:bg-violet-950/25 border-2 border-violet-300 dark:border-violet-500/40 space-y-0.5 shadow-xs">
           <div className="flex items-center gap-1.5 text-xs font-bold text-violet-800 dark:text-violet-300">
             <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
             <span>You</span>
@@ -151,7 +146,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
           <div className="flex items-baseline gap-2 pt-0.5">
             {userGrade ? (
               <>
-                <span className="text-xl font-black font-mono px-2 py-0.5 rounded-lg bg-violet-600 text-white border border-violet-400 shadow-xs">
+                <span className="text-lg font-black font-mono px-2 py-0.5 rounded-lg bg-violet-600 text-white border border-violet-400 shadow-xs">
                   {userGrade}
                 </span>
                 <span className="text-xs font-mono font-semibold text-violet-700 dark:text-violet-300">
@@ -171,16 +166,16 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
 
         {/* 2. LSV Column (Togglable) */}
         {showLsv && (
-          <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/25 border-2 border-amber-300 dark:border-amber-500/40 space-y-1 shadow-xs">
+          <div className="p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/25 border-2 border-amber-300 dark:border-amber-500/40 space-y-0.5 shadow-xs">
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
               <span>LSV</span>
             </div>
 
             <div className="flex items-baseline gap-2 pt-0.5">
-              {userGrade && !isBlindGrading ? (
+              {userGrade && !isBlindGrading && lsvRating ? (
                 <>
-                  <span className="text-xl font-black font-mono px-2 py-0.5 rounded-lg bg-amber-500 text-slate-950 border border-amber-400 shadow-xs">
+                  <span className="text-lg font-black font-mono px-2 py-0.5 rounded-lg bg-amber-500 text-slate-950 border border-amber-400 shadow-xs">
                     {lsvRating.grade}
                   </span>
                   <span className="text-xs font-black font-mono text-amber-700 dark:text-amber-300">
@@ -197,7 +192,11 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
             <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80 flex items-center justify-between pt-0.5">
               {!userGrade ? (
                 <span className="italic text-slate-400 dark:text-slate-500">Rate card to reveal</span>
-              ) : !isBlindGrading ? (
+              ) : isBlindGrading ? (
+                <span className="italic text-amber-600/70 dark:text-amber-400/70">Hidden in grading mode</span>
+              ) : !lsvRating ? (
+                <span className="italic text-slate-400 dark:text-slate-500">Review pending</span>
+              ) : (
                 <>
                   <span>{lsvRating.verdict || 'Playable'}</span>
                   {userGrade && (
@@ -206,8 +205,6 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
                     </span>
                   )}
                 </>
-              ) : (
-                <span className="italic text-amber-600/70 dark:text-amber-400/70">Hidden in grading mode</span>
               )}
             </div>
           </div>
@@ -215,7 +212,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
 
         {/* 3. 17L Column (Togglable) */}
         {show17L && (
-          <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/25 border-2 border-emerald-400 dark:border-emerald-500/50 space-y-1 shadow-xs">
+          <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/25 border-2 border-emerald-400 dark:border-emerald-500/50 space-y-0.5 shadow-xs">
             <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               <span>17Lands</span>
@@ -224,7 +221,7 @@ export const GradeComparisonCard: React.FC<GradeComparisonCardProps> = ({
             <div className="flex items-baseline gap-2 pt-0.5">
               {userGrade && actualGrade && !isBlindGrading ? (
                 <>
-                  <span className="text-xl font-black font-mono px-2 py-0.5 rounded-lg bg-emerald-600 text-white border border-emerald-400 shadow-xs">
+                  <span className="text-lg font-black font-mono px-2 py-0.5 rounded-lg bg-emerald-600 text-white border border-emerald-400 shadow-xs">
                     {actualGrade}
                   </span>
                   <span className="text-xs font-black font-mono text-emerald-700 dark:text-emerald-300">

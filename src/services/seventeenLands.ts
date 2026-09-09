@@ -243,7 +243,7 @@ const PRELOADED_17LANDS_DATA: Record<string, Record<string, Partial<SeventeenLan
 
 export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLandsSetData | null> {
   const upperCode = setCode.toUpperCase();
-  const cacheKey = `17lands_data_${upperCode}_v6`;
+  const cacheKey = `17lands_data_${upperCode}_v7`;
 
   try {
     const cached = await get<SeventeenLandsSetData>(cacheKey);
@@ -297,10 +297,12 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
 
   // Multi-tier URL strategies (Vite proxy, direct 17Lands endpoint, all-time start_date, CORS fallback)
   const candidateUrls = [
+    `/api/17lands/api/card_data?expansion=${encodeURIComponent(upperCode)}&event_type=PremierDraft`,
     `/api/17lands/card_ratings/data?expansion=${encodeURIComponent(upperCode)}&format=PremierDraft&start_date=2019-01-01`,
     `/api/17lands/card_ratings/data?expansion=${encodeURIComponent(upperCode)}&format=PremierDraft`,
+    `https://www.17lands.com/api/card_data?expansion=${encodeURIComponent(upperCode)}&event_type=PremierDraft`,
     `https://www.17lands.com/card_ratings/data?expansion=${encodeURIComponent(upperCode)}&format=PremierDraft&start_date=2019-01-01`,
-    `https://www.17lands.com/card_ratings/data?expansion=${encodeURIComponent(upperCode)}&format=PremierDraft`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.17lands.com/api/card_data?expansion=${upperCode}&event_type=PremierDraft`)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.17lands.com/card_ratings/data?expansion=${upperCode}&format=PremierDraft&start_date=2019-01-01`)}`,
   ];
 
@@ -308,7 +310,12 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
     try {
       const response = await fetch(url, { headers: { Accept: 'application/json' } });
       if (response.ok) {
-        const rawData = await response.json();
+        let rawData = await response.json();
+        // /api/card_data returns { data: [...] }, while /card_ratings/data returns [...] directly
+        if (rawData && !Array.isArray(rawData) && Array.isArray(rawData.data)) {
+          rawData = rawData.data;
+        }
+
         if (Array.isArray(rawData) && rawData.length > 0) {
           const validCards = rawData.filter((item: any) => {
             const wr = item.ever_drawn_win_rate ?? item.game_count_win_rate ?? item.win_rate;
@@ -517,7 +524,7 @@ export function accuracyToEvaluatorGrade(accuracyPercent: number): {
     grade: 'F',
     gpa: 0.0,
     title: 'Complete Format Blindspot',
-    description: 'Major discrepancy across most cards compared to empirical 17Lands data.',
+    description: 'Major discrepancy across most cards compared to 17Lands data.',
   };
 }
 

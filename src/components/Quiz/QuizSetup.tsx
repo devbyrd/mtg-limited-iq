@@ -189,10 +189,10 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
           <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p className="font-bold">
-              Recent / Upcoming Set Notice: 17Lands empirical telemetry requires ~2 weeks of draft match volume post-release.
+              Recent / Upcoming Set Notice: 17Lands data requires ~2 weeks of draft matches post-release.
             </p>
             <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-              Categories dependent on win-rate duels and ALSA trap detection are disabled for this set until telemetry matures. Pack 1 Pick 1 utilizes intrinsic card power heuristics, and all mechanic/combat drills remain ready to play.
+              Categories dependent on win-rate duels and ALSA trap detection are disabled for this set until match data is available. Pack 1 Pick 1 and mechanic/combat drills remain ready to play.
             </p>
           </div>
         </div>
@@ -301,8 +301,8 @@ export const QuizSetup: React.FC<QuizSetupProps> = ({
                   <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                     {isDisabled
                       ? isSetUnder2Weeks
-                        ? 'Empirical 17Lands telemetry is not available during preview or initial release (~2 weeks post-release required).'
-                        : '17Lands match telemetry is not available for this set.'
+                        ? '17Lands data is not available during preview or initial release (~2 weeks post-release required).'
+                        : '17Lands data is not available for this set.'
                       : cat.description}
                   </p>
                 </div>

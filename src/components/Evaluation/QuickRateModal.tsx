@@ -3,7 +3,7 @@ import { Card, GradeTier, SeventeenLandsSetData, UserCardEvaluation } from '../.
 import { GRADE_TIERS, GRADE_SCORES, getColorSortIndex, getRaritySortIndex, winRateToGradeTier } from '../../services/seventeenLands';
 import { getLsvRatingForCard } from '../../services/lsvRatings';
 import { CardObfuscator } from '../CardObfuscator';
-import { X, ChevronLeft, ChevronRight, Zap, FileText, Check, Eye, EyeOff, Scale, ArrowUpDown, Layers, ArrowRight, CheckCircle2, ExternalLink, BarChart2, Filter } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Zap, FileText, Check, Eye, EyeOff, Scale, ArrowUpDown, PlayingCardsFan, ArrowRight, CheckCircle2, ExternalLink, BarChart2, Filter } from 'lucide-react';
 import { ManaCostRenderer } from '../UI/ManaSymbol';
 import { GradeComparisonCard } from '../UI/GradeComparisonCard';
 import { SimilarCardsModal } from './SimilarCardsModal';
@@ -397,36 +397,38 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
         )}
 
         {/* Fixed Content Layout (Grid split: Left Card Art, Right Grading Controls) */}
-        <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-5 p-5 sm:p-6 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-4 lg:gap-5 p-4 sm:p-5 overflow-hidden">
           {/* Left: Card Visual (Fixed width column) */}
-          <div className="w-full md:w-[320px] lg:w-[360px] shrink-0 flex flex-col items-center justify-start gap-2">
-            <div className="w-full flex items-center justify-between gap-2 px-1 text-xs font-mono text-slate-500 dark:text-slate-400">
+          <div className="w-full md:w-[280px] lg:w-[305px] shrink-0 flex flex-col items-center justify-between min-h-0">
+            <div className="w-full flex items-center justify-between gap-2 px-1 text-xs font-mono text-slate-500 dark:text-slate-400 mb-1">
               <span className="font-semibold text-slate-700 dark:text-slate-300">
                 #{currentCard.collector_number} • <span className="capitalize font-normal text-slate-500 dark:text-slate-400">{currentCard.rarity}</span>
               </span>
               <span>CMC {currentCard.cmc}</span>
             </div>
 
-            <CardObfuscator
-              card={currentCard}
-              obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
-              size="lg"
-            />
+            <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+              <CardObfuscator
+                card={currentCard}
+                obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
+                size="md"
+              />
+            </div>
 
             {/* Find Similar Cards Button below visual */}
             <button
               type="button"
               onClick={() => setIsSimilarModalOpen(true)}
-              className="w-full mt-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer group"
+              className="w-full mt-2 py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/90 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer group shrink-0"
               title="Find functionally similar cards in past sets to project a historical rating"
             >
-              <Layers className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:text-violet-600 dark:group-hover:text-cyan-300 transition-colors shrink-0" />
+              <PlayingCardsFan className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:text-violet-600 dark:group-hover:text-cyan-300 transition-colors shrink-0" />
               <span>Find Similar Cards</span>
             </button>
           </div>
 
           {/* Right: Full Rules Text, 17Lands Comparison & Notes Field (Constant layout) */}
-          <div className="space-y-3 flex-1 min-w-0 w-full flex flex-col justify-between min-h-0 overflow-y-auto pr-1">
+          <div className="space-y-2.5 flex-1 min-w-0 w-full flex flex-col justify-between min-h-0 overflow-y-auto pr-1">
             {/* Title & Mana */}
             <div className="space-y-0.5 shrink-0">
               <div className="flex items-center gap-2.5 flex-wrap">
@@ -440,14 +442,6 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
               </p>
             </div>
 
-            {/* Complete Oracle Rules Text (Internal scroll for long cards, keeps modal static) */}
-            <div className="flex-1 min-h-[90px] max-h-[170px] overflow-y-auto p-3.5 rounded-xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-800 dark:text-slate-100 leading-relaxed whitespace-pre-line">
-              <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider mb-1 sticky top-0 bg-slate-50 dark:bg-[#050818]">
-                Oracle Rules Text
-              </div>
-              {currentCard.oracle_text || 'No oracle rules text.'}
-            </div>
-
             {/* Grade & 17Lands Live Comparison Panel */}
             <GradeComparisonCard
               card={currentCard}
@@ -457,6 +451,14 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
               showLsv={showLsv}
               show17L={show17L}
             />
+
+            {/* Complete Oracle Rules Text (Internal scroll for long cards, keeps modal static) */}
+            <div className="flex-1 min-h-[75px] max-h-[150px] overflow-y-auto p-3 rounded-xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-800 dark:text-slate-100 leading-relaxed whitespace-pre-line">
+              <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider mb-1 sticky top-0 bg-slate-50 dark:bg-[#050818] z-10">
+                Oracle Rules Text
+              </div>
+              {currentCard.oracle_text || 'No oracle rules text.'}
+            </div>
 
             {/* Strategy Notes Field */}
             <div className="shrink-0 space-y-1">
@@ -479,12 +481,12 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
         </div>
 
         {/* Grade Tier Buttons & Navigation (Pinned at constant position at bottom) */}
-        <div className="shrink-0 p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-[#060a1d] space-y-2.5">
-          <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-center flex items-center justify-center gap-1" title="Grade Tier Score Mapping: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5">
+        <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-[#060a1d] space-y-2">
+          <div className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider text-center flex items-center justify-center gap-1" title="Grade Tier Score Mapping: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5">
             <span>Assign Limited Grade</span>
           </div>
           <div
-            className="grid grid-cols-11 gap-1"
+            className="grid grid-cols-11 gap-1 max-w-4xl mx-auto"
             title="Grade Tier Score Mapping: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5"
           >
             {GRADE_TIERS.map((tier) => {
@@ -501,7 +503,7 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
                   key={tier}
                   type="button"
                   onClick={() => handleRate(tier)}
-                  className={`py-2.5 rounded-xl text-xs font-mono font-bold transition-all border cursor-pointer ${
+                  className={`py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer ${
                     isSelected ? 'ring-2 ring-violet-400 bg-violet-600 text-white font-black shadow-xs' : color
                   }`}
                 >
@@ -555,6 +557,15 @@ export const QuickRateModal: React.FC<QuickRateModalProps> = ({
           onClose={() => setIsSimilarModalOpen(false)}
           targetCard={currentCard}
           currentGrade={currentEval?.userGrade}
+          target17LandsData={
+            landData
+              ? {
+                  winRate: landData.win_rate,
+                  alsa: landData.avg_seen,
+                  tierGrade: landData.tier_grade as GradeTier,
+                }
+              : undefined
+          }
           onAdoptGrade={(target, grade) => {
             const priority = grade.startsWith('A')
               ? '1st Pick Bomb'

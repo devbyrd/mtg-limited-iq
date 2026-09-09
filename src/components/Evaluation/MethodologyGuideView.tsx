@@ -164,7 +164,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
             </div>
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center text-xs font-mono">
-              <span className="text-slate-500 dark:text-slate-400">Empirical Tier:</span>
+              <span className="text-slate-500 dark:text-slate-400">17Lands Tier:</span>
               <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40">
                 Tier {simulated17LandsTier}
               </span>
@@ -267,10 +267,10 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Empirical Arena match data across hundreds of thousands of games. Measures true Game-In-Hand Win Rate (GIH WR) and ALSA pick speeds.
+              Arena match data across hundreds of thousands of games. Measures Game-In-Hand Win Rate (GIH WR) and ALSA pick speeds.
             </p>
             <div className="p-2 rounded-xl bg-white dark:bg-[#050818] border border-emerald-200 dark:border-emerald-800/60 text-[11px] font-mono text-emerald-800 dark:text-emerald-300">
-              • Scale: Empirical GIH WR (44% to 66%+)<br />
+              • Scale: GIH WR (44% to 66%+)<br />
               • Synchronized as games are logged
             </div>
           </div>
@@ -289,7 +289,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               <ul className="list-disc pl-4 space-y-0.5 font-mono text-[11px] text-slate-700 dark:text-slate-200 pt-1">
                 <li><strong className="text-violet-600 dark:text-cyan-300">Me:</strong> Your assigned grade</li>
                 <li><strong className="text-amber-600 dark:text-amber-300">LSV:</strong> Limited Resources preview score</li>
-                <li><strong className="text-emerald-600 dark:text-emerald-300">17L:</strong> 17Lands empirical grade</li>
+                <li><strong className="text-emerald-600 dark:text-emerald-300">17L:</strong> 17Lands grade</li>
               </ul>
             </div>
 
@@ -476,7 +476,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
             <div className="p-3 rounded-xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800 space-y-1">
               <strong className="text-slate-900 dark:text-white block font-mono">2. 17Lands Cross-Reference:</strong>
               <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
-                Pulls empirical Game-In-Hand Win Rates (GIH WR) and ALSA values from our IndexedDB cache for each matched candidate.
+                Pulls Game-In-Hand Win Rates (GIH WR) and ALSA values from our IndexedDB cache for each matched candidate.
               </p>
             </div>
 
@@ -602,7 +602,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
                 </td>
                 <td className="py-3 px-3 font-mono text-emerald-600 dark:text-emerald-400">Raw % (GIH, IWD, ALSA)</td>
                 <td className="py-3 px-3 text-slate-600 dark:text-slate-300">Z-Score Normalization (0.33σ steps centered at 'C' set mean)</td>
-                <td className="py-3 px-3 text-slate-500 dark:text-slate-400">Pure unfiltered empirical logs across all Arena draft games</td>
+                <td className="py-3 px-3 text-slate-500 dark:text-slate-400">Arena match logs across premier draft games</td>
               </tr>
               <tr>
                 <td className="py-3 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -803,7 +803,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               Calibration Score = [ (Exact + 1-Step) + (0.5 &times; 2-Step) ] &divide; Total Rated Cards &times; 100%
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-              Provides your global accuracy score against empirical draft win rates:
+              Provides your global accuracy score against 17Lands draft win rates:
             </p>
             <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
               <div className="p-2 rounded bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800 text-emerald-600 dark:text-emerald-400">
@@ -849,7 +849,7 @@ export const MethodologyGuideView: React.FC<MethodologyGuideViewProps> = ({
               Alignment = max(0, 100 - &sum; |Predicted Rank - 17Lands Rank| &times; 3.5)
             </div>
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-              Measures how accurately your predicted top color pairs and 10 guild rankings matched empirical Arena win rates.
+              Measures how accurately your predicted top color pairs and 10 guild rankings matched 17Lands Arena win rates.
             </p>
           </div>
         </div>

@@ -593,7 +593,7 @@ export function generateSetMetaSummaryMarkdown(report: SetSynthesisReport): stri
   const lines: string[] = [];
   lines.push(`# 🏆 Draft Meta Forecast: ${report.setName} (${report.setCode})`);
   lines.push(`*Generated from ${report.ratedCards}/${report.totalCards} graded cards (${report.completionPercent}% Complete)*`);
-  lines.push(`*Note: This synthesis is based on your personal card ratings${report.has17LandsData ? ' compared with 17Lands empirical match data' : ' (pre-release prediction mode)'}*.\n`);
+  lines.push(`*Note: This synthesis is based on your personal card ratings${report.has17LandsData ? ' compared with 17Lands draft win rates' : ' (pre-release prediction mode)'}*.\n`);
 
   if (report.has17LandsData && report.metaCalibrationScore !== undefined) {
     lines.push(`### 📊 Prediction Calibration Score: **${report.metaCalibrationScore}%** (${report.metaCalibrationTier})\n`);

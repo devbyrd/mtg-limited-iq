@@ -54,12 +54,12 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
 
   // Blind grading state persisted per set in local storage (or controlled by parent)
   const [internalBlindGrading, setInternalBlindGrading] = useState<boolean>(() => {
-    return getBlindGradingForSet(currentSetCode);
+    return getBlindGradingForSet(currentSetCode, undefined, cards.length);
   });
 
   useEffect(() => {
-    setInternalBlindGrading(getBlindGradingForSet(currentSetCode));
-  }, [currentSetCode]);
+    setInternalBlindGrading(getBlindGradingForSet(currentSetCode, undefined, cards.length));
+  }, [currentSetCode, cards.length]);
 
   const effectiveIsBlind = propIsBlindGrading !== undefined ? propIsBlindGrading : internalBlindGrading;
 

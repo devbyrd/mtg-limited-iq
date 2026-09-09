@@ -80,12 +80,12 @@ export const App: React.FC = () => {
 
   // Blind Grading Preference (Shared between Grading Hub and Cards Explorer)
   const [isBlindGrading, setIsBlindGrading] = useState<boolean>(() => {
-    return getBlindGradingForSet(currentSet.code, currentUser.id);
+    return getBlindGradingForSet(currentSet.code, currentUser.id, currentSet.card_count);
   });
 
   useEffect(() => {
-    setIsBlindGrading(getBlindGradingForSet(currentSet.code, currentUser.id));
-  }, [currentSet.code, currentUser.id]);
+    setIsBlindGrading(getBlindGradingForSet(currentSet.code, currentUser.id, cards.length || currentSet.card_count));
+  }, [currentSet.code, currentUser.id, cards.length, currentSet.card_count]);
 
   const handleToggleBlindGrading = useCallback(() => {
     setIsBlindGrading((prev) => {
