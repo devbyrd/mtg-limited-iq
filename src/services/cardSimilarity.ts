@@ -283,6 +283,13 @@ export function extractCardFeatures(card: Card) {
     }
     if (/deals combat damage to a player/i.test(oracle)) actionSubtypes.add('saboteur');
     if (/when .* dies/i.test(oracle)) actionSubtypes.add('death_trigger');
+
+    const isAttackKeywordGranter = /whenever .* attacks/i.test(oracle) &&
+      /(another target|target attacking|target creature).* gains (first strike|trample|deathtouch|menace|flying|lifelink|vigilance|double strike|haste|indestructible)/i.test(oracle);
+    if (isAttackKeywordGranter) {
+      actionSubtypes.add('attack_keyword_granter');
+      detectedCategories.add('trick');
+    }
   }
 
   // ETB Counter Distribution & Growth Subtypes
@@ -512,6 +519,9 @@ function buildScryfallQueries(card: Card, features: ReturnType<typeof extractCar
   // SIGNATURE ENGINE MECHANIC QUERY (Cross-Color & Archetype-Level)
   if (features.actionSubtypes.has('connive_recruit')) {
     queries.push(`${baseFilter} ${excludeSelf} t:creature (o:connive or o:recruit or o:"draw a card, then discard")`);
+  } else if (features.actionSubtypes.has('attack_keyword_granter')) {
+    queries.push(`${baseFilter} ${excludeSelf} t:creature cmc=${features.cmc} (o:"whenever" o:"attacks" o:"gains")`);
+    queries.push(`${baseFilter} ${excludeSelf} t:creature cmc>=${minCmc} cmc<=${maxCmc} (o:"whenever" o:"attacks" o:"gains")`);
   } else if (features.actionSubtypes.has('loot_rummage')) {
     queries.push(`${baseFilter} ${excludeSelf} ${typeFilter} (o:"draw a card, then discard" or o:"discard a card, then draw" or o:connive or o:recruit)`);
   }
@@ -677,8 +687,12 @@ export function calculateCardSimilarity(target: Card, candidate: Card): { score:
 
   const isExactColorMatch = tColors.size === cColors.size && [...tColors].every(c => cColors.has(c));
   const isCandidateColorless = cColors.size === 0;
+  const bothShareAttackGranter = (
+    tFeatures.actionSubtypes.has('attack_keyword_granter') && cFeatures.actionSubtypes.has('attack_keyword_granter')
+  );
   const bothShareSignatureEngine = (
-    tFeatures.actionSubtypes.has('connive_recruit') && cFeatures.actionSubtypes.has('connive_recruit')
+    (tFeatures.actionSubtypes.has('connive_recruit') && cFeatures.actionSubtypes.has('connive_recruit')) ||
+    bothShareAttackGranter
   );
   const bothShareLivingWeapon = (
     tFeatures.isLivingWeapon && cFeatures.isLivingWeapon
@@ -704,7 +718,9 @@ export function calculateCardSimilarity(target: Card, candidate: Card): { score:
     baselineReasons.push(`Component color (${[...cColors][0]})`);
   } else if (bothShareSignatureEngine) {
     colorScore = 14;
-    baselineReasons.push('Cross-color engine mechanic peer (Recruit & Connive)');
+    baselineReasons.push(bothShareAttackGranter
+      ? 'Cross-color engine mechanic peer (Attack trigger keyword mentor)'
+      : 'Cross-color engine mechanic peer (Recruit & Connive)');
   } else if (bothShareLivingWeapon) {
     colorScore = 14;
     baselineReasons.push('Cross-color engine mechanic peer (Living Weapon / Token Equipment)');
@@ -851,8 +867,10 @@ export function calculateCardSimilarity(target: Card, candidate: Card): { score:
   }
 
   if (bothShareSignatureEngine) {
-    method1LexicalScore = Math.min(25, method1LexicalScore + 8);
-    lexicalReasons.push('Shared signature engine: Recruit & Connive (ETB loot + discard payoff)');
+    method1LexicalScore = Math.min(25, method1LexicalScore + (bothShareAttackGranter ? 6 : 8));
+    lexicalReasons.push(bothShareAttackGranter
+      ? 'Shared attack-trigger combat mentor mechanic'
+      : 'Shared signature engine: Recruit & Connive (ETB loot + discard payoff)');
   }
 
   if (bothShareLivingWeapon) {

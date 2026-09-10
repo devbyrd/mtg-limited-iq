@@ -87,6 +87,12 @@ export const App: React.FC = () => {
     return getBlindGradingForSet(currentSet.code, currentUser.id, currentSet.card_count);
   });
 
+  // Shared Card Filter State (persists across Grading ↔ Cards tab switches)
+  const [sharedSearchQuery, setSharedSearchQuery] = useState<string>('');
+  const [sharedSelectedColors, setSharedSelectedColors] = useState<string[]>(['ALL']);
+  const [sharedSelectedRarities, setSharedSelectedRarities] = useState<string[]>(['ALL']);
+  const [sharedSelectedRoles, setSharedSelectedRoles] = useState<string[]>(['ALL']);
+
   useEffect(() => {
     if (currentSet) {
       setIsBlindGrading(getBlindGradingForSet(currentSet.code, currentUser.id, cards.length || currentSet.card_count));
@@ -563,6 +569,14 @@ export const App: React.FC = () => {
                 onSaveEvaluation={handleSaveEvaluation}
                 onClearEvaluationsForSet={handleClearEvaluationsForSet}
                 onOpenSetSelector={() => setIsSetSelectorOpen(true)}
+                searchQuery={sharedSearchQuery}
+                selectedColors={sharedSelectedColors}
+                selectedRarities={sharedSelectedRarities}
+                selectedRoles={sharedSelectedRoles}
+                onSearchQueryChange={setSharedSearchQuery}
+                onSelectedColorsChange={setSharedSelectedColors}
+                onSelectedRaritiesChange={setSharedSelectedRarities}
+                onSelectedRolesChange={setSharedSelectedRoles}
               />
             )}
 
@@ -577,6 +591,14 @@ export const App: React.FC = () => {
                 onToggleBlindGrading={handleToggleBlindGrading}
                 onSaveEvaluation={handleSaveEvaluation}
                 onClearEvaluationsForSet={handleClearEvaluationsForSet}
+                searchQuery={sharedSearchQuery}
+                selectedColors={sharedSelectedColors}
+                selectedRarities={sharedSelectedRarities}
+                selectedRoles={sharedSelectedRoles}
+                onSearchQueryChange={setSharedSearchQuery}
+                onSelectedColorsChange={setSharedSelectedColors}
+                onSelectedRaritiesChange={setSharedSelectedRarities}
+                onSelectedRolesChange={setSharedSelectedRoles}
                 onGradeCard={(card) => {
                   setActiveTab('evaluation');
                   updateAppUrlParams({
@@ -587,6 +609,7 @@ export const App: React.FC = () => {
                 }}
               />
             )}
+
           </>
         )}
       </main>

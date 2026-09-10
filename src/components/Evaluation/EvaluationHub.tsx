@@ -40,6 +40,15 @@ interface EvaluationHubProps {
   onSaveEvaluation: (evaluation: UserCardEvaluation) => void;
   onClearEvaluationsForSet?: (setCode: string) => void;
   onOpenSetSelector: () => void;
+  // Shared filter state (synced with Cards tab)
+  searchQuery?: string;
+  selectedColors?: string[];
+  selectedRarities?: string[];
+  selectedRoles?: string[];
+  onSearchQueryChange?: (q: string) => void;
+  onSelectedColorsChange?: (c: string[]) => void;
+  onSelectedRaritiesChange?: (r: string[]) => void;
+  onSelectedRolesChange?: (r: string[]) => void;
 }
 
 export const EvaluationHub: React.FC<EvaluationHubProps> = ({
@@ -53,6 +62,14 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
   onSaveEvaluation,
   onClearEvaluationsForSet,
   onOpenSetSelector,
+  searchQuery: propSearchQuery,
+  selectedColors: propSelectedColors,
+  selectedRarities: propSelectedRarities,
+  selectedRoles: propSelectedRoles,
+  onSearchQueryChange,
+  onSelectedColorsChange,
+  onSelectedRaritiesChange,
+  onSelectedRolesChange,
 }) => {
   // Only use authentic 17Lands data with sufficient sample size and matching setCode
   const effective17LandsData = useMemo(() => {
@@ -80,10 +97,23 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
     }
     return 'grade';
   });
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedColors, setSelectedColors] = useState<string[]>(['ALL']);
-  const [selectedRarities, setSelectedRarities] = useState<string[]>(['ALL']);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
+  const [searchQuery, setSearchQuery] = useState<string>(propSearchQuery ?? '');
+  const [selectedColors, setSelectedColors] = useState<string[]>(propSelectedColors ?? ['ALL']);
+  const [selectedRarities, setSelectedRarities] = useState<string[]>(propSelectedRarities ?? ['ALL']);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(propSelectedRoles ?? ['ALL']);
+
+  // Keep local state in sync with prop changes (tab switch carries filters over)
+  useEffect(() => { if (propSearchQuery !== undefined) setSearchQuery(propSearchQuery); }, [propSearchQuery]);
+  useEffect(() => { if (propSelectedColors !== undefined) setSelectedColors(propSelectedColors); }, [propSelectedColors]);
+  useEffect(() => { if (propSelectedRarities !== undefined) setSelectedRarities(propSelectedRarities); }, [propSelectedRarities]);
+  useEffect(() => { if (propSelectedRoles !== undefined) setSelectedRoles(propSelectedRoles); }, [propSelectedRoles]);
+
+  // Proxy setters — update local state and notify parent
+  const handleSearchQuery = (q: string) => { setSearchQuery(q); onSearchQueryChange?.(q); };
+  const handleSelectedColors = (c: string[]) => { setSelectedColors(c); onSelectedColorsChange?.(c); };
+  const handleSelectedRarities = (r: string[]) => { setSelectedRarities(r); onSelectedRaritiesChange?.(r); };
+  const handleSelectedRoles = (r: string[]) => { setSelectedRoles(r); onSelectedRolesChange?.(r); };
+
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [comparisonSelectedColor, setComparisonSelectedColor] = useState<string>('ALL');
   const [comparisonVerdictFilter, setComparisonVerdictFilter] = useState<string>('ALL');
@@ -533,7 +563,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
               <div className="flex-1 max-w-xl">
                 <CardSearchBar
                   query={searchQuery}
-                  onChangeQuery={setSearchQuery}
+                  onChangeQuery={handleSearchQuery}
                   currentSetCode={currentSetCode}
                   currentSetName={currentSetName}
                   matchCount={filteredCards.length}
@@ -633,7 +663,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
             {/* Colors, Roles, and Rarities Filter Row */}
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {/* Mana Color Filter Bar with Official Arena Glow */}
-              <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={setSelectedColors} />
+              <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={handleSelectedColors} />
 
               {/* Rarity Filter Pills (Multi-Select) */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -645,15 +675,15 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                       key={rar}
                       onClick={() => {
                         if (rar === 'ALL') {
-                          setSelectedRarities(['ALL']);
+                          handleSelectedRarities(['ALL']);
                           return;
                         }
                         const current = selectedRarities.filter((r) => r !== 'ALL');
                         if (current.includes(rar)) {
                           const next = current.filter((r) => r !== rar);
-                          setSelectedRarities(next.length === 0 ? ['ALL'] : next);
+                          handleSelectedRarities(next.length === 0 ? ['ALL'] : next);
                         } else {
-                          setSelectedRarities([...current, rar]);
+                          handleSelectedRarities([...current, rar]);
                         }
                       }}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
@@ -680,13 +710,13 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                   <button
                     key={role.id}
                     onClick={() => {
-                      if (role.id === 'ALL') { setSelectedRoles(['ALL']); return; }
+                      if (role.id === 'ALL') { handleSelectedRoles(['ALL']); return; }
                       const current = selectedRoles.filter(r => r !== 'ALL');
                       if (current.includes(role.id)) {
                         const next = current.filter(r => r !== role.id);
-                        setSelectedRoles(next.length === 0 ? ['ALL'] : next);
+                        handleSelectedRoles(next.length === 0 ? ['ALL'] : next);
                       } else {
-                        setSelectedRoles([...current, role.id]);
+                        handleSelectedRoles([...current, role.id]);
                       }
                     }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -719,11 +749,11 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedColors(['ALL']);
-                    setSelectedRarities(['ALL']);
-                    setSelectedRoles(['ALL']);
+                    handleSelectedColors(['ALL']);
+                    handleSelectedRarities(['ALL']);
+                    handleSelectedRoles(['ALL']);
                     setFilterRatedStatus('ALL');
-                    setSearchQuery('');
+                    handleSearchQuery('');
                   }}
                   className="text-[11px] font-mono text-violet-700 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer font-bold"
                 >

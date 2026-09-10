@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, GradeTier, MTGColor, MTGRarity, SeventeenLandsSetData, UserCardEvaluation } from '../../types/mtg';
 import { CardObfuscator } from '../CardObfuscator';
-import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldCheck, ChevronLeft, ChevronRight, CheckCircle2, FileText, Star, BarChart2, Trash2, Eye, EyeOff, BookOpen, Layers } from 'lucide-react';
+import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldCheck, ChevronLeft, ChevronRight, CheckCircle2, FileText, Star, BarChart2, Trash2, Eye, EyeOff, BookOpen, Layers, Check, PlayingCardsFan } from 'lucide-react';
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
+import { SimilarCardsModal } from '../Evaluation/SimilarCardsModal';
 import { ManaCostRenderer, ManaSymbol } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
-import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, get17LandsArchetypeUrl, winRateToGradeTier, get17LandsCardRating } from '../../services/seventeenLands';
+import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, get17LandsArchetypeUrl, winRateToGradeTier, gradeTierToIndex, get17LandsCardRating } from '../../services/seventeenLands';
+import { getLsvRatingForCard } from '../../services/lsvRatings';
 import { GradeComparisonCard } from '../UI/GradeComparisonCard';
 import { PlaneswalkerSymbol } from '../UI/PlaneswalkerSymbol';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
@@ -27,6 +29,15 @@ interface SetExplorerProps {
   onClearEvaluationsForSet?: (setCode: string) => void;
   onGradeCard?: (card: Card) => void;
   onPracticeCard?: (card: Card) => void;
+  // Shared filter state (synced with Grading tab)
+  searchQuery?: string;
+  selectedColors?: string[];
+  selectedRarities?: string[];
+  selectedRoles?: string[];
+  onSearchQueryChange?: (q: string) => void;
+  onSelectedColorsChange?: (c: string[]) => void;
+  onSelectedRaritiesChange?: (r: string[]) => void;
+  onSelectedRolesChange?: (r: string[]) => void;
 }
 
 export const SetExplorer: React.FC<SetExplorerProps> = ({
@@ -41,16 +52,111 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
   onClearEvaluationsForSet,
   onGradeCard,
   onPracticeCard,
+  searchQuery: propSearchQuery,
+  selectedColors: propSelectedColors,
+  selectedRarities: propSelectedRarities,
+  selectedRoles: propSelectedRoles,
+  onSearchQueryChange,
+  onSelectedColorsChange,
+  onSelectedRaritiesChange,
+  onSelectedRolesChange,
 }) => {
   const [activeExplorerTab, setActiveExplorerTab] = useState<'cards' | 'archetypes'>('cards');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedColors, setSelectedColors] = useState<string[]>(['ALL']);
-  const [selectedRarities, setSelectedRarities] = useState<string[]>(['ALL']);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
+  const [searchQuery, setSearchQuery] = useState<string>(propSearchQuery ?? '');
+  const [selectedColors, setSelectedColors] = useState<string[]>(propSelectedColors ?? ['ALL']);
+  const [selectedRarities, setSelectedRarities] = useState<string[]>(propSelectedRarities ?? ['ALL']);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(propSelectedRoles ?? ['ALL']);
+
+  useEffect(() => { if (propSearchQuery !== undefined) setSearchQuery(propSearchQuery); }, [propSearchQuery]);
+  useEffect(() => { if (propSelectedColors !== undefined) setSelectedColors(propSelectedColors); }, [propSelectedColors]);
+  useEffect(() => { if (propSelectedRarities !== undefined) setSelectedRarities(propSelectedRarities); }, [propSelectedRarities]);
+  useEffect(() => { if (propSelectedRoles !== undefined) setSelectedRoles(propSelectedRoles); }, [propSelectedRoles]);
+
+  const handleSearchQuery = (q: string) => { setSearchQuery(q); onSearchQueryChange?.(q); };
+  const handleSelectedColors = (c: string[]) => { setSelectedColors(c); onSelectedColorsChange?.(c); };
+  const handleSelectedRarities = (r: string[]) => { setSelectedRarities(r); onSelectedRaritiesChange?.(r); };
+  const handleSelectedRoles = (r: string[]) => { setSelectedRoles(r); onSelectedRolesChange?.(r); };
+
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [sortBy, setSortBy] = useState<'number' | 'name' | 'cmc' | 'winrate'>('number');
   const [selectedCardForModal, setSelectedCardForModal] = useState<Card | null>(null);
+  const [similarCardsModalCard, setSimilarCardsModalCard] = useState<Card | null>(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
+
+  const [showLsv, setShowLsv] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mtg_show_lsv');
+      if (saved !== null) return saved === 'true';
+    }
+    return true;
+  });
+  const [show17L, setShow17L] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mtg_show_17l');
+      if (saved !== null) return saved === 'true';
+    }
+    return true;
+  });
+
+  const handleToggleLsv = () => {
+    setShowLsv((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mtg_show_lsv', String(next));
+      }
+      return next;
+    });
+  };
+
+  const handleToggle17L = () => {
+    setShow17L((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mtg_show_17l', String(next));
+      }
+      return next;
+    });
+  };
+
+  const effective17LandsData = useMemo(() => {
+    if (
+      seventeenLandsData &&
+      seventeenLandsData.setCode?.toUpperCase() === currentSetCode.toUpperCase() &&
+      (seventeenLandsData.sampleSize || 0) > 500 &&
+      Object.keys(seventeenLandsData.cards || {}).length >= 5
+    ) {
+      const hasMatchingCards = cards.some((c) => {
+        const rating = get17LandsCardRating(c, seventeenLandsData);
+        return (rating?.game_count || 0) > 0;
+      });
+      if (hasMatchingCards) {
+        return seventeenLandsData;
+      }
+    }
+    return null;
+  }, [seventeenLandsData, currentSetCode, cards]);
+
+  const formatTierGapVerdict = (gap: number) => {
+    if (gap === 0) {
+      return { text: '🎯 Exact Match vs 17Lands', color: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40 font-bold', isCorrect: true };
+    }
+    if (gap === 1) {
+      return { text: '✓ +1 Step Over 17Lands (Within Tolerance)', color: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold', isCorrect: true };
+    }
+    if (gap === -1) {
+      return { text: '✓ -1 Step Under 17Lands (Within Tolerance)', color: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold', isCorrect: true };
+    }
+    if (gap === 2) {
+      return { text: '+2 Over 17Lands (Minor Trap)', color: 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 font-semibold', isCorrect: false };
+    }
+    if (gap === -2) {
+      return { text: '-2 Under 17Lands (Minor Sleeper)', color: 'bg-sky-100 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-500/40 font-semibold', isCorrect: false };
+    }
+    if (gap >= 3) {
+      return { text: `+${gap} Over 17Lands (Major Trap 🔥)`, color: 'bg-rose-100 dark:bg-rose-500/25 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-500/50 font-bold', isCorrect: false };
+    }
+    return { text: `${gap} Under 17Lands (Major Sleeper 🧊)`, color: 'bg-blue-100 dark:bg-blue-500/25 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-500/50 font-bold', isCorrect: false };
+  };
 
   // Blind grading state persisted per set in local storage (or controlled by parent)
   const [internalBlindGrading, setInternalBlindGrading] = useState<boolean>(() => {
@@ -219,7 +325,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 space-y-6 animate-in fade-in duration-200">
+    <div className="max-w-[1440px] mx-auto py-4 px-3 sm:px-6 space-y-6 animate-in fade-in duration-200">
       {/* Header Banner with Sub-Tabs & Set Overview */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 shadow-xs">
         <div className="space-y-1.5 min-w-0">
@@ -279,7 +385,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
           <div className="flex-1">
             <CardSearchBar
               query={searchQuery}
-              onChangeQuery={setSearchQuery}
+              onChangeQuery={handleSearchQuery}
               currentSetCode={currentSetCode}
               currentSetName={currentSetName}
               matchCount={filteredAndSortedCards.length}
@@ -308,7 +414,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
         {/* Filters: Colors, Rarities, Status & Roles */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {/* Mana Color Filter Bar with Official Arena Glow */}
-          <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={setSelectedColors} />
+          <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={handleSelectedColors} />
 
           {/* Active Archetype Filter Pill */}
           {(() => {
@@ -324,7 +430,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                 <span>Archetype: {label}</span>
                 <button
                   type="button"
-                  onClick={() => setSelectedColors(['ALL'])}
+                  onClick={() => handleSelectedColors(["ALL"])}
                   className="p-0.5 rounded-md hover:bg-violet-200 dark:hover:bg-violet-800 text-violet-600 dark:text-violet-300 cursor-pointer"
                   title="Clear Archetype Filter"
                 >
@@ -344,15 +450,15 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   key={rarity}
                   onClick={() => {
                     if (rarity === 'ALL') {
-                      setSelectedRarities(['ALL']);
+                      handleSelectedRarities(['ALL']);
                       return;
                     }
                     const current = selectedRarities.filter((r) => r !== 'ALL');
                     if (current.includes(rarity)) {
                       const next = current.filter((r) => r !== rarity);
-                      setSelectedRarities(next.length === 0 ? ['ALL'] : next);
+                      handleSelectedRarities(next.length === 0 ? ['ALL'] : next);
                     } else {
-                      setSelectedRarities([...current, rarity]);
+                      handleSelectedRarities([...current, rarity]);
                     }
                   }}
                   className={`px-2.5 py-1 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${
@@ -386,6 +492,54 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                 {st.label}
               </button>
             ))}
+          </div>
+
+          {/* Rating Source Toggle Controls (Me, LSV, 17L) */}
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-[#050818] p-1 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
+            <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 px-1 hidden md:inline">
+              Sources:
+            </span>
+
+            {/* 1. Me (Always Active / Locked) */}
+            <button
+              type="button"
+              disabled
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-violet-600 text-white shadow-xs border border-violet-400/40 flex items-center gap-1 cursor-default"
+              title="Your personal grade (Always active)"
+            >
+              <Check className="w-3 h-3 text-white" />
+              <span>Me</span>
+            </button>
+
+            {/* 2. LSV (Togglable) */}
+            <button
+              type="button"
+              onClick={handleToggleLsv}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                showLsv
+                  ? 'bg-amber-500 text-slate-950 shadow-xs border border-amber-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 bg-transparent border border-transparent'
+              }`}
+              title="Toggle LSV (Limited Resources / Expert Pre-release) rating"
+            >
+              {showLsv && <Check className="w-3 h-3 text-slate-950" />}
+              <span>LSV</span>
+            </button>
+
+            {/* 3. 17L (Togglable) */}
+            <button
+              type="button"
+              onClick={handleToggle17L}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                show17L
+                  ? 'bg-emerald-600 text-white shadow-xs border border-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 bg-transparent border border-transparent'
+              }`}
+              title="Toggle 17Lands draft data"
+            >
+              {show17L && <Check className="w-3 h-3 text-white" />}
+              <span>17L</span>
+            </button>
           </div>
 
           {/* Grading Mode / Compare Mode Toggle (mimics state of Grade tab) */}
@@ -446,13 +600,13 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
               <button
                 key={role.id}
                 onClick={() => {
-                  if (role.id === 'ALL') { setSelectedRoles(['ALL']); return; }
+                  if (role.id === 'ALL') { handleSelectedRoles(['ALL']); return; }
                   const current = selectedRoles.filter(r => r !== 'ALL');
                   if (current.includes(role.id)) {
                     const next = current.filter(r => r !== role.id);
-                    setSelectedRoles(next.length === 0 ? ['ALL'] : next);
+                    handleSelectedRoles(next.length === 0 ? ['ALL'] : next);
                   } else {
-                    setSelectedRoles([...current, role.id]);
+                    handleSelectedRoles([...current, role.id]);
                   }
                 }}
                 className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
@@ -485,11 +639,11 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             <button
               type="button"
               onClick={() => {
-                setSelectedColors(['ALL']);
-                setSelectedRarities(['ALL']);
-                setSelectedRoles(['ALL']);
+                handleSelectedColors(['ALL']);
+                handleSelectedRarities(['ALL']);
+                handleSelectedRoles(['ALL']);
                 setFilterRatedStatus('ALL');
-                setSearchQuery('');
+                handleSearchQuery('');
               }}
               className="text-[11px] font-mono text-violet-700 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer font-bold"
             >
@@ -506,119 +660,251 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
           <p className="text-sm">No cards match the active filters.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAndSortedCards.map((card) => {
-            const landData = get17LandsCardRating(card, seventeenLandsData);
-            const evalData = userEvaluations[`${card.set.toLowerCase()}_${card.name.toLowerCase()}`];
+            const evalKey = `${card.set.toLowerCase()}_${card.name.toLowerCase()}`;
+            const userEval = userEvaluations[evalKey];
+            const landData = get17LandsCardRating(card, effective17LandsData) || undefined;
 
             return (
               <div
                 key={card.id}
                 onClick={() => handleSelectModalCard(card)}
-                className="group p-2.5 rounded-3xl bg-white dark:bg-[#090e28] border border-slate-200 dark:border-slate-800/80 hover:border-violet-500/80 dark:hover:border-cyan-400/80 hover:shadow-md transition-all cursor-pointer flex flex-col items-center select-none relative"
+                className="p-4 rounded-2xl bg-white dark:bg-[#090e24] border border-slate-200 dark:border-slate-800/80 hover:border-violet-500/60 dark:hover:border-violet-500/60 transition-all flex flex-col justify-between gap-3.5 shadow-xs hover:shadow-md cursor-pointer group"
               >
-                {/* Top Bar above the card: Grade Badge(s) on the left & 17Lands external link icon on the right */}
-                <div className="w-[185px] flex items-center justify-between mb-1.5 min-h-[22px]">
-                  <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
-                    {(() => {
-                      const actualTier: GradeTier | null = (landData && typeof landData.win_rate === 'number' && landData.win_rate > 0)
-                        ? ((landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate))
-                        : null;
-                      const hasUserGrade = Boolean(evalData?.userGrade);
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 flex flex-col items-start w-[185px]">
+                    {/* Top Bar above card: Grade badge(s) in a single horizontal non-wrapping row */}
+                    <div className="w-full flex items-center justify-between mb-1.5 min-h-[22px] overflow-hidden">
+                      <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
+                        {(() => {
+                          const actualTier: GradeTier | null = landData
+                            ? ((landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate))
+                            : null;
+                          const hasUserGrade = Boolean(userEval?.userGrade);
+                          const lsvRating = getLsvRatingForCard(card);
+
+                          return (
+                            <>
+                              {/* 1. Me Badge (Always Visible) */}
+                              <div
+                                className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
+                                title="Your assigned grade"
+                              >
+                                <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">Me</span>
+                                <span className="text-[11px] font-black">{hasUserGrade ? userEval!.userGrade : '—'}</span>
+                              </div>
+
+                              {/* 2. LSV Badge (Togglable) */}
+                              {showLsv && (
+                                <div
+                                  className="px-1.5 py-0.5 rounded-md bg-amber-950/95 text-white border border-amber-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
+                                  title={!hasUserGrade ? 'Rate the card to see how you compare' : (effectiveIsBlind ? 'LSV Rating (hidden in grading mode)' : lsvRating ? `LSV Rating: ${lsvRating.score.toFixed(1)} / 5.0 (${lsvRating.grade}) - ${lsvRating.verdict || 'Playable'}` : 'LSV Review pending (set not yet rated)')}
+                                >
+                                  <span className="text-[8px] uppercase tracking-wider font-extrabold text-amber-300">LSV</span>
+                                  <span className="text-[11px] font-black text-amber-200">{!hasUserGrade || effectiveIsBlind ? '—' : (lsvRating ? lsvRating.grade : '—')}</span>
+                                </div>
+                              )}
+
+                              {/* 3. 17L Badge (Togglable) */}
+                              {show17L && (
+                                <div
+                                  className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap ${
+                                    actualTier
+                                      ? 'bg-emerald-950/95 text-white border border-emerald-400'
+                                      : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
+                                  }`}
+                                  title={!hasUserGrade ? 'Rate the card to see how you compare' : (actualTier ? (effectiveIsBlind ? '17Lands grade (hidden in grading mode)' : `17Lands: ${actualTier}`) : '17Lands data is available approximately 2 weeks after release')}
+                                >
+                                  <span className={`text-[8px] uppercase tracking-wider font-extrabold ${actualTier ? 'text-emerald-300' : 'text-slate-500'}`}>17L</span>
+                                  <span className={`text-[11px] font-black ${actualTier ? 'text-emerald-200' : 'text-amber-500/80'}`}>
+                                    {!hasUserGrade || effectiveIsBlind ? '—' : (actualTier || 'TBD')}
+                                  </span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      <a
+                        href={get17LandsCardUrl(card.set, card, landData)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1 -mr-1 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors shrink-0"
+                        title="Open on 17Lands.com"
+                        aria-label={`Open ${card.name} on 17Lands.com`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
+                    <CardObfuscator
+                      card={card}
+                      obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
+                      size="sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-1.5">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-cyan-200 transition-colors truncate">{card.name}</h3>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 font-bold">
+                          #{card.collector_number}
+                        </span>
+                        {card.mana_cost && (
+                          <ManaCostRenderer manaCost={card.mana_cost} size="xs" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-violet-700 dark:text-cyan-300 font-mono">{card.type_line}</p>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                      {card.oracle_text || 'No oracle text.'}
+                    </p>
+
+                    {/* Evaluation Verdict & 17Lands Stats */}
+                    {!userEval?.userGrade ? (
+                      /* Card is Ungraded: Simple invite */
+                      <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-[#050818] border border-dashed border-slate-200 dark:border-slate-800 text-center">
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          Rate the card to see how you compare
+                        </span>
+                      </div>
+                    ) : effectiveIsBlind ? (
+                      /* Graded in Grading Mode */
+                      <div className="mt-2 p-2 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-500/30 text-xs font-mono flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                          <EyeOff className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span>Grading Mode</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Compare Mode reveals 17Lands data
+                        </span>
+                      </div>
+                    ) : (
+                      /* Graded in Compare Mode: Clean single-panel display */
+                      <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-mono">
+                        {landData ? (() => {
+                          const actualTier: GradeTier = (landData.tier_grade as GradeTier) || winRateToGradeTier(landData.win_rate);
+                          const gap = gradeTierToIndex(actualTier) - gradeTierToIndex(userEval.userGrade);
+                          const verdict = formatTierGapVerdict(gap);
+
+                          return (
+                            <>
+                              {/* 17Lands empirical metrics */}
+                              <div className="flex items-center justify-between gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-mono">
+                                <span>
+                                  GIH WR: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{((landData.win_rate || 0) * 100).toFixed(1)}%</strong>
+                                </span>
+                                <span className="text-slate-300 dark:text-slate-700">•</span>
+                                <span>
+                                  ALSA: <strong className="font-bold text-slate-900 dark:text-white">{typeof landData.avg_seen === 'number' ? landData.avg_seen.toFixed(1) : '-'}</strong>
+                                </span>
+                                {typeof landData.iwd === 'number' && (
+                                  <>
+                                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                                    <span>
+                                      IWD: <strong className={`font-bold ${landData.iwd >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>{landData.iwd >= 0 ? '+' : ''}{(landData.iwd * 100).toFixed(1)}%</strong>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Comparison Verdict Banner */}
+                              <div className={`px-2 py-1 rounded-lg text-[10px] font-bold border text-center ${verdict.color}`}>
+                                {verdict.text}
+                              </div>
+                            </>
+                          );
+                        })() : (
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                            <span>17Lands: <strong className="text-amber-600 dark:text-amber-400 font-semibold">Data Pending</strong></span>
+                          </div>
+                        )}
+
+                        {/* LSV Reference: Score & Verdict */}
+                        {showLsv && (() => {
+                          const lsvRating = getLsvRatingForCard(card);
+                          return (
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60 font-mono">
+                              <span>LSV: <strong>{lsvRating ? `${lsvRating.score.toFixed(1)} / 5.0` : 'Pending'}</strong></span>
+                              <span className="italic truncate font-sans">{lsvRating?.verdict || 'Review pending'}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* User Notes Snippet */}
+                    {userEval?.notes && (
+                      <div className="mt-2 p-2 rounded-lg bg-slate-50 dark:bg-[#050818] border border-slate-200 dark:border-slate-800 text-[11px] text-slate-700 dark:text-cyan-200/90 flex items-start gap-1.5">
+                        <FileText className="w-3 h-3 text-violet-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2 italic leading-relaxed">"{userEval.notes}"</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Find Similar Cards Icon Button */}
+                <div className="flex justify-end -mb-2 z-10">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSimilarCardsModalCard(card);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-violet-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                    title="Find similar cards (Precedent Engine)"
+                  >
+                    <PlayingCardsFan className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Quick Grade Selector Bar */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between text-[10px] uppercase tracking-wider font-semibold">
+                    <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400 font-bold" title="Grade Point Values: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                      <span>Rate Card:</span>
+                    </span>
+                  </div>
+
+                  <div
+                    className="grid grid-cols-11 gap-0.5"
+                    title="Grade Point Values: A+=5.0, A=4.7, A-=4.3, B+=4.0, B=3.7, B-=3.3, C+=3.0, C=2.7, C-=2.3, D=1.5, F=0.5"
+                  >
+                    {GRADE_TIERS.map((tier) => {
+                      const isSelected = userEval?.userGrade === tier;
+                      let color = 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-[#050818] dark:text-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600';
+                      if (tier.startsWith('A')) color = 'bg-amber-100 text-amber-950 border-amber-300 font-bold dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30 hover:bg-amber-500 hover:text-white';
+                      if (tier.startsWith('B')) color = 'bg-cyan-100 text-cyan-950 border-cyan-300 font-bold dark:bg-cyan-500/10 dark:text-cyan-300 dark:border-cyan-500/30 hover:bg-cyan-500 hover:text-white';
+                      if (tier.startsWith('C')) color = 'bg-slate-100 text-slate-900 border-slate-300 font-bold dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700/50 hover:bg-slate-600 hover:text-white';
+                      if (tier === 'D') color = 'bg-orange-100 text-orange-950 border-orange-300 font-bold dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/30 hover:bg-orange-500 hover:text-white';
+                      if (tier === 'F') color = 'bg-rose-100 text-rose-950 border-rose-300 font-bold dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30 hover:bg-rose-500 hover:text-white';
 
                       return (
-                        <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
-                          <div
-                            className="px-1.5 py-0.5 rounded-md bg-violet-950/95 text-white border border-violet-400 shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap"
-                            title={hasUserGrade ? `Your assigned grade: ${evalData!.userGrade}` : 'Not graded yet'}
-                          >
-                            <span className="text-[8px] uppercase tracking-wider font-extrabold text-violet-300">YOU</span>
-                            <span className="text-[11px] font-black">{hasUserGrade ? evalData!.userGrade : '—'}</span>
-                          </div>
-                          <div
-                            className={`px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 font-mono shrink-0 whitespace-nowrap ${
-                              effectiveIsBlind || !hasUserGrade
-                                ? 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                                : actualTier
-                                ? 'bg-emerald-950/95 text-white border border-emerald-400'
-                                : 'bg-slate-900/90 text-slate-400 border border-slate-700/80'
-                            }`}
-                            title={
-                              effectiveIsBlind
-                                ? '17Lands grade hidden in Grading Mode'
-                                : !hasUserGrade
-                                ? 'Rate the card to see how you compare'
-                                : actualTier
-                                ? `17Lands Grade: ${actualTier}`
-                                : '17Lands data is available approximately 2 weeks after release'
-                            }
-                          >
-                            <span
-                              className={`text-[8px] uppercase tracking-wider font-extrabold ${
-                                effectiveIsBlind || !hasUserGrade
-                                  ? 'text-slate-500'
-                                  : actualTier
-                                  ? 'text-emerald-300'
-                                  : 'text-slate-500'
-                              }`}
-                            >
-                              17L
-                            </span>
-                            <span
-                              className={`text-[11px] font-black ${
-                                effectiveIsBlind || !hasUserGrade
-                                  ? 'text-slate-400'
-                                  : actualTier
-                                  ? 'text-emerald-200'
-                                  : 'text-amber-500/80'
-                              }`}
-                            >
-                              {effectiveIsBlind || !hasUserGrade ? '—' : actualTier || 'TBD'}
-                            </span>
-                          </div>
-                        </div>
+                        <button
+                          key={tier}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickGradeInModal(card, tier);
+                          }}
+                          className={`py-1 rounded-md text-[10px] font-mono font-bold transition-all border cursor-pointer ${
+                            isSelected
+                              ? 'bg-violet-600 text-white border-violet-400 font-black shadow-xs'
+                              : color
+                          }`}
+                        >
+                          {tier}
+                        </button>
                       );
-                    })()}
-                  </div>
-
-                  <a
-                    href={get17LandsCardUrl(card.set, card, landData)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1 -mr-1 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors shrink-0"
-                    title="Open on 17Lands.com"
-                    aria-label={`Open ${card.name} on 17Lands.com`}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-
-                <div className="w-full flex justify-center transform group-hover:scale-[1.02] transition-transform duration-300">
-                  <CardObfuscator
-                    card={card}
-                    obfuscation={{ target: 'none', style: 'blur', isRevealed: true }}
-                    size="sm"
-                  />
-                </div>
-
-                <div className="w-full mt-2.5 px-1 text-left">
-                  <div className="flex items-center justify-between gap-1">
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-violet-600 dark:group-hover:text-cyan-300 transition-colors">
-                      {card.name}
-                    </h3>
-                  </div>
-
-                  {/* Badges / Metrics */}
-                  <div className="mt-1 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                    <span>#{card.collector_number}</span>
-                    {!effectiveIsBlind && evalData?.userGrade && landData ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold" title="17Lands Premier Draft GIH Win Rate">
-                        {(landData.win_rate * 100).toFixed(1)}% WR
-                      </span>
-                    ) : (
-                      <span className="capitalize text-slate-500 dark:text-slate-400">{card.rarity}</span>
-                    )}
+                    })}
                   </div>
                 </div>
               </div>
@@ -822,11 +1108,11 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveExplorerTab('cards');
-                        setSelectedColors(archetype.code.toUpperCase().split(''));
-                        setSelectedRarities(['ALL']);
-                        setSelectedRoles(['ALL']);
+                        handleSelectedColors(archetype.code.toUpperCase().split(""));
+                        handleSelectedRarities(["ALL"]);
+                        handleSelectedRoles(["ALL"]);
                         setFilterRatedStatus('ALL');
-                        setSearchQuery('');
+                        handleSearchQuery('');
                       }}
                       className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-violet-50 dark:bg-violet-950/50 hover:bg-violet-100 dark:hover:bg-violet-900/60 text-violet-700 dark:text-cyan-300 border border-violet-200 dark:border-violet-800/50 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
@@ -838,11 +1124,11 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       type="button"
                       onClick={() => {
                         setActiveExplorerTab('cards');
-                        setSelectedColors(['GOLD_' + archetype.code.toUpperCase()]);
-                        setSelectedRarities(['ALL']);
-                        setSelectedRoles(['ALL']);
+                        handleSelectedColors(["GOLD_" + archetype.code.toUpperCase()]);
+                        handleSelectedRarities(["ALL"]);
+                        handleSelectedRoles(["ALL"]);
                         setFilterRatedStatus('ALL');
-                        setSearchQuery('');
+                        handleSearchQuery('');
                       }}
                       className="px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                       title={`Filter to multi-color gold ${archetype.code} cards`}
@@ -935,10 +1221,10 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setSearchQuery('');
-                    setSelectedColors(['ALL']);
-                    setSelectedRarities(['ALL']);
-                    setSelectedRoles(['ALL']);
+                    handleSearchQuery('');
+                    handleSelectedColors(["ALL"]);
+                    handleSelectedRarities(["ALL"]);
+                    handleSelectedRoles(["ALL"]);
                     setFilterRatedStatus('ALL');
                   }}
                   className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 font-bold text-[11px] transition-colors cursor-pointer border border-amber-500/30 shrink-0"
@@ -1130,6 +1416,28 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Similar Cards Modal (Precedent Engine) */}
+      {similarCardsModalCard && (
+        <SimilarCardsModal
+          isOpen={Boolean(similarCardsModalCard)}
+          onClose={() => setSimilarCardsModalCard(null)}
+          targetCard={similarCardsModalCard}
+          currentGrade={userEvaluations[`${similarCardsModalCard.set.toLowerCase()}_${similarCardsModalCard.name.toLowerCase()}`]?.userGrade}
+          target17LandsData={
+            effective17LandsData?.cards?.[similarCardsModalCard.name]
+              ? {
+                  winRate: effective17LandsData.cards[similarCardsModalCard.name].win_rate,
+                  alsa: effective17LandsData.cards[similarCardsModalCard.name].avg_seen,
+                  tierGrade: effective17LandsData.cards[similarCardsModalCard.name].tier_grade as GradeTier,
+                }
+              : undefined
+          }
+          onAdoptGrade={(targetCard, grade) => {
+            handleQuickGradeInModal(targetCard, grade);
+          }}
+        />
       )}
 
       {/* Clear Set Ratings Modal with Multi-Step Confirmation */}
