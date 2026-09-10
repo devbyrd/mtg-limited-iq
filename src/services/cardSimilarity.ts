@@ -910,6 +910,7 @@ export function calculateCardSimilarity(target: Card, candidate: Card): { score:
     defensive_wall: { pts: 12, label: 'Both defensive board stabilizers' },
     etb_counter_distributor: { pts: 16, label: 'Both distribute +1/+1 counters on enters' },
     etb_counter_self: { pts: 14, label: 'Both enter with / grow with +1/+1 counters' },
+    attack_keyword_granter: { pts: 17, label: 'Both attack-triggered keyword mentors' },
     etb_value: { pts: 12, label: 'Both ETB value creatures' },
   };
 
@@ -969,6 +970,10 @@ export function calculateCardSimilarity(target: Card, candidate: Card): { score:
   const isBothLivingWeapon = tFeatures.actionSubtypes.has('living_weapon') && cFeatures.actionSubtypes.has('living_weapon');
   if (isBothLivingWeapon) {
     structuralReasons.unshift('Both Living Weapon / auto-attaching token equipment');
+  }
+
+  if (bothShareAttackGranter) {
+    structuralReasons.unshift('Both attack-triggered keyword mentors');
   }
 
   // Action Subtype Mismatch Penalties
@@ -1174,7 +1179,7 @@ export function calculateCardSimilarity(target: Card, candidate: Card): { score:
  * and synthesizes an empirical consensus projection.
  */
 export async function findSimilarCards(targetCard: Card): Promise<CardSimilarityResult> {
-  const cacheKey = `${targetCard.set.toUpperCase()}_${targetCard.name.toUpperCase()}_v20`;
+  const cacheKey = `${targetCard.set.toUpperCase()}_${targetCard.name.toUpperCase()}_v21`;
   if (similarityCache.has(cacheKey)) {
     return similarityCache.get(cacheKey)!;
   }
