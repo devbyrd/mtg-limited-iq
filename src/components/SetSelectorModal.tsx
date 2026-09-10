@@ -9,7 +9,7 @@ interface SetSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
   allSets: SetInfo[];
-  currentSetCode: string;
+  currentSetCode?: string;
   onSelectSet: (set: SetInfo) => void;
   isLoadingCards?: boolean;
   downloadProgress?: { loaded: number; total: number } | null;
@@ -19,7 +19,7 @@ export const SetSelectorModal: React.FC<SetSelectorModalProps> = ({
   isOpen,
   onClose,
   allSets,
-  currentSetCode,
+  currentSetCode = '',
   onSelectSet,
   isLoadingCards = false,
   downloadProgress = null,

@@ -11,6 +11,7 @@ import {
   gradeTierToIndex,
   getColorSortIndex,
   getRaritySortIndex,
+  get17LandsCardRating,
 } from '../../services/seventeenLands';
 import { getBlindGradingForSet, setBlindGradingForSet } from '../../services/storage';
 import { getLsvRatingForCard } from '../../services/lsvRatings';
@@ -61,9 +62,10 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
       (seventeenLandsData.sampleSize || 0) > 500 &&
       Object.keys(seventeenLandsData.cards || {}).length >= 5
     ) {
-      const hasMatchingCards = cards.some(
-        (c) => (seventeenLandsData.cards?.[c.name]?.game_count || 0) > 0
-      );
+      const hasMatchingCards = cards.some((c) => {
+        const rating = get17LandsCardRating(c, seventeenLandsData);
+        return (rating?.game_count || 0) > 0;
+      });
       if (hasMatchingCards) {
         return seventeenLandsData;
       }
@@ -80,7 +82,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
   });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedColors, setSelectedColors] = useState<string[]>(['ALL']);
-  const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
+  const [selectedRarities, setSelectedRarities] = useState<string[]>(['ALL']);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [comparisonSelectedColor, setComparisonSelectedColor] = useState<string>('ALL');
@@ -226,8 +228,11 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
 
       if (!cardMatchesColorFilter(c, selectedColors)) return false;
 
-      if (selectedRarity !== 'ALL' && c.rarity !== selectedRarity) {
-        return false;
+      if (!selectedRarities.includes('ALL') && selectedRarities.length > 0) {
+        const cardRarity = (c.rarity || '').toLowerCase();
+        if (!selectedRarities.map((r) => r.toLowerCase()).includes(cardRarity)) {
+          return false;
+        }
       }
 
       if (!cardMatchesRoleFilter(c, selectedRoles)) return false;
@@ -259,7 +264,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
     });
 
     return result;
-  }, [cards, searchQuery, selectedColors, selectedRarity, selectedRoles, filterRatedStatus, userEvaluations, cardListSortBy, effective17LandsData]);
+  }, [cards, searchQuery, selectedColors, selectedRarities, selectedRoles, filterRatedStatus, userEvaluations, cardListSortBy, effective17LandsData]);
 
   // Comparison Matrix for Analytics Tab
   const comparisonList = useMemo(() => {
@@ -630,21 +635,37 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
               {/* Mana Color Filter Bar with Official Arena Glow */}
               <ManaColorFilterBar selectedColors={selectedColors} onSelectColors={setSelectedColors} />
 
-              {/* Rarity Filter Pills */}
+              {/* Rarity Filter Pills (Multi-Select) */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
-                {['ALL', 'common', 'uncommon', 'rare', 'mythic'].map((rar) => (
-                  <button
-                    key={rar}
-                    onClick={() => setSelectedRarity(rar)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
-                      selectedRarity === rar
-                        ? 'bg-violet-600 text-white shadow-xs font-bold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    {rar === 'ALL' ? 'All' : rar}
-                  </button>
-                ))}
+                {['ALL', 'common', 'uncommon', 'rare', 'mythic'].map((rar) => {
+                  const isSelected = (rar === 'ALL' && (selectedRarities.includes('ALL') || selectedRarities.length === 0)) ||
+                    (rar !== 'ALL' && selectedRarities.includes(rar));
+                  return (
+                    <button
+                      key={rar}
+                      onClick={() => {
+                        if (rar === 'ALL') {
+                          setSelectedRarities(['ALL']);
+                          return;
+                        }
+                        const current = selectedRarities.filter((r) => r !== 'ALL');
+                        if (current.includes(rar)) {
+                          const next = current.filter((r) => r !== rar);
+                          setSelectedRarities(next.length === 0 ? ['ALL'] : next);
+                        } else {
+                          setSelectedRarities([...current, rar]);
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-violet-600 text-white shadow-xs font-bold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      {rar === 'ALL' ? 'All' : rar}
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Tactical Roles */}
@@ -687,19 +708,19 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                 <span className="font-bold text-slate-800 dark:text-slate-200">
                   Displaying <strong className="text-violet-700 dark:text-cyan-300 font-black">{filteredCards.length}</strong> of <strong>{cards.length}</strong> cards
                 </span>
-                {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+                {(!selectedColors.includes('ALL') || !selectedRarities.includes('ALL') || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
                   <span className="text-violet-600 dark:text-cyan-400 font-semibold">
                     (filtered)
                   </span>
                 )}
               </div>
 
-              {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+              {(!selectedColors.includes('ALL') || !selectedRarities.includes('ALL') || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedColors(['ALL']);
-                    setSelectedRarity('ALL');
+                    setSelectedRarities(['ALL']);
                     setSelectedRoles(['ALL']);
                     setFilterRatedStatus('ALL');
                     setSearchQuery('');
@@ -718,7 +739,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
             {filteredCards.map((card) => {
               const evalKey = `${card.set.toLowerCase()}_${card.name.toLowerCase()}`;
               const userEval = userEvaluations[evalKey];
-              const landData = effective17LandsData?.cards ? effective17LandsData.cards[card.name] : undefined;
+              const landData = get17LandsCardRating(card, effective17LandsData) || undefined;
 
               return (
                 <div
@@ -802,7 +823,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                         </div>
                       </div>
                       <p className="text-[11px] text-violet-700 dark:text-cyan-300 font-mono">{card.type_line}</p>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
                         {card.oracle_text || 'No oracle text.'}
                       </p>
 
@@ -861,9 +882,8 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
                               </>
                             );
                           })() : (
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                              <span>17Lands: <strong className="text-amber-600 dark:text-amber-400">Data TBD</strong></span>
-                              <span className="italic">Data pending</span>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                              <span>17Lands: <strong className="text-amber-600 dark:text-amber-400 font-semibold">Data Pending</strong></span>
                             </div>
                           )}
 
@@ -1729,7 +1749,7 @@ export const EvaluationHub: React.FC<EvaluationHubProps> = ({
           onClearFilter={() => {
             setSearchQuery('');
             setSelectedColors(['ALL']);
-            setSelectedRarity('ALL');
+            setSelectedRarities(['ALL']);
             setSelectedRoles(['ALL']);
             setFilterRatedStatus('ALL');
           }}

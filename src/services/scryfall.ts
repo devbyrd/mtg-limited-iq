@@ -4,22 +4,40 @@ import { Card, CardFace, MTGColor, MTGRarity, SetInfo } from '../types/mtg';
 const SCRYFALL_API_BASE = 'https://api.scryfall.com';
 
 // Pre-curated list of top Limited sets with metadata
+// has_17lands_data: false only for sets with no 17Lands tracking (TRK, FRA)
 export const POPULAR_LIMITED_SETS: SetInfo[] = [
-  { code: 'SOS', name: 'Secrets of Strixhaven', card_count: 285, released_at: '2026-04-24', set_type: 'expansion', has_17lands_data: true },
+  // 2026 Sets
+  { code: 'TRK', name: 'Star Trek', card_count: 135, released_at: '2026-11-01', set_type: 'expansion', has_17lands_data: false },
+  { code: 'MBC', name: 'Mystery Booster Commander Edition', card_count: 80, released_at: '2026-11-01', set_type: 'expansion', has_17lands_data: true },
+  { code: 'FRA', name: 'Reality Fracture', card_count: 152, released_at: '2026-10-01', set_type: 'expansion', has_17lands_data: false },
+  { code: 'HOB', name: 'The Hobbit', card_count: 321, released_at: '2026-08-14', set_type: 'expansion', has_17lands_data: true },
+  { code: 'MSH', name: 'Marvel Super Heroes', card_count: 453, released_at: '2026-06-01', set_type: 'expansion', has_17lands_data: true },
+  { code: 'SOS', name: 'Secrets of Strixhaven', card_count: 368, released_at: '2026-04-24', set_type: 'expansion', has_17lands_data: true },
+  { code: 'TMT', name: 'Teenage Mutant Ninja Turtles', card_count: 320, released_at: '2026-03-01', set_type: 'expansion', has_17lands_data: true },
+  { code: 'ECL', name: 'Lorwyn Eclipsed', card_count: 408, released_at: '2026-01-01', set_type: 'expansion', has_17lands_data: true },
+  // 2025 Sets
+  { code: 'TLA', name: 'Avatar: The Last Airbender', card_count: 394, released_at: '2025-11-01', set_type: 'expansion', has_17lands_data: true },
+  { code: 'SPM', name: "Marvel's Spider-Man", card_count: 286, released_at: '2025-09-01', set_type: 'expansion', has_17lands_data: true },
+  { code: 'EOE', name: 'Edge of Eternities', card_count: 400, released_at: '2025-08-01', set_type: 'expansion', has_17lands_data: true },
+  { code: 'FIN', name: 'Final Fantasy', card_count: 599, released_at: '2025-06-01', set_type: 'expansion', has_17lands_data: true },
   { code: 'DFT', name: 'Aetherdrift', card_count: 276, released_at: '2025-02-14', set_type: 'expansion', has_17lands_data: true },
+  // 2024 Sets
   { code: 'FDN', name: 'Foundations', card_count: 271, released_at: '2024-11-15', set_type: 'core', has_17lands_data: true },
   { code: 'DSK', name: 'Duskmourn: House of Horror', card_count: 276, released_at: '2024-09-27', set_type: 'expansion', has_17lands_data: true },
   { code: 'BLB', name: 'Bloomburrow', card_count: 261, released_at: '2024-08-02', set_type: 'expansion', has_17lands_data: true },
   { code: 'MH3', name: 'Modern Horizons 3', card_count: 303, released_at: '2024-06-14', set_type: 'draft_innovation', has_17lands_data: true },
   { code: 'OTJ', name: 'Outlaws of Thunder Junction', card_count: 276, released_at: '2024-04-19', set_type: 'expansion', has_17lands_data: true },
   { code: 'MKM', name: 'Murders at Karlov Manor', card_count: 276, released_at: '2024-02-09', set_type: 'expansion', has_17lands_data: true },
+  // 2023 Sets
   { code: 'LCI', name: 'The Lost Caverns of Ixalan', card_count: 271, released_at: '2023-11-17', set_type: 'expansion', has_17lands_data: true },
   { code: 'WOE', name: 'Wilds of Eldraine', card_count: 266, released_at: '2023-09-08', set_type: 'expansion', has_17lands_data: true },
   { code: 'MOM', name: 'March of the Machine', card_count: 281, released_at: '2023-04-21', set_type: 'expansion', has_17lands_data: true },
   { code: 'ONE', name: 'Phyrexia: All Will Be One', card_count: 271, released_at: '2023-02-10', set_type: 'expansion', has_17lands_data: true },
-  { code: 'BRO', name: 'The Brothers\' War', card_count: 287, released_at: '2022-11-18', set_type: 'expansion', has_17lands_data: true },
+  // 2022 Sets
+  { code: 'BRO', name: "The Brothers' War", card_count: 287, released_at: '2022-11-18', set_type: 'expansion', has_17lands_data: true },
   { code: 'DMU', name: 'Dominaria United', card_count: 281, released_at: '2022-09-09', set_type: 'expansion', has_17lands_data: true },
   { code: 'NEO', name: 'Kamigawa: Neon Dynasty', card_count: 302, released_at: '2022-02-18', set_type: 'expansion', has_17lands_data: true },
+  // 2021 Sets
   { code: 'STX', name: 'Strixhaven: School of Mages', card_count: 275, released_at: '2021-04-23', set_type: 'expansion', has_17lands_data: true },
   { code: 'KHM', name: 'Kaldheim', card_count: 285, released_at: '2021-02-05', set_type: 'expansion', has_17lands_data: true },
 ];
@@ -160,7 +178,7 @@ export function normalizeScryfallCard(rawCard: any): Card {
 
 export async function fetchAllSets(): Promise<SetInfo[]> {
   try {
-    const cachedSets = await get<SetInfo[]>('scryfall_all_sets_v4');
+    const cachedSets = await get<SetInfo[]>('scryfall_all_sets_v5');
     if (cachedSets && cachedSets.length > 0) {
       return cachedSets;
     }
@@ -205,7 +223,7 @@ export async function fetchAllSets(): Promise<SetInfo[]> {
       }
     });
 
-    await set('scryfall_all_sets_v4', merged);
+    await set('scryfall_all_sets_v5', merged);
     return merged;
   } catch (err) {
     console.warn('Using popular limited sets fallback due to fetch error:', err);

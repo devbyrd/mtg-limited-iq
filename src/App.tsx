@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, QuestionCategory, QuizOption, QuizQuestion, QuizResult, QuizSettings, SetInfo, SeventeenLandsSetData, UserCardEvaluation, UserProfileStats, UserAccount } from './types/mtg';
 import { fetchCardsForSet, fetchAllSets, POPULAR_LIMITED_SETS } from './services/scryfall';
 import { fetch17LandsSetData, is17LandsEligibleForSet } from './services/seventeenLands';
-import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser, setActiveUser, getBlindGradingForSet, setBlindGradingForSet } from './services/storage';
+import { loadUserStats, loadUserEvaluations, saveUserEvaluation, clearUserEvaluationsForSet, recordQuizCompletion, defaultStats, getLastSelectedSetCode, saveLastSelectedSetCode, getActiveUser, setActiveUser, getBlindGradingForSet, setBlindGradingForSet, hasSeenWelcomeTour } from './services/storage';
 import { generateQuiz } from './services/quizGenerator';
 import { supabase, isSupabaseConfigured } from './services/supabase';
 import { supabaseUserToUserAccount } from './services/auth';
@@ -12,6 +12,8 @@ import { pullRemoteUserData, migrateLocalDataToCloud } from './services/cloudSyn
 import { Navbar, ActiveTab } from './components/Navbar';
 import { SetSelectorModal } from './components/SetSelectorModal';
 import { AuthModal } from './components/Auth/AuthModal';
+import { WelcomeTourModal } from './components/UI/WelcomeTourModal';
+import { EmptySetPlaceholder } from './components/UI/EmptySetPlaceholder';
 import { QuizSetup } from './components/Quiz/QuizSetup';
 import { QuizActive } from './components/Quiz/QuizActive';
 import { QuizSummary } from './components/Quiz/QuizSummary';
@@ -35,13 +37,14 @@ export const App: React.FC = () => {
   });
   const [isSetSelectorOpen, setIsSetSelectorOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isWelcomeTourOpen, setIsWelcomeTourOpen] = useState<boolean>(() => !hasSeenWelcomeTour());
 
   // User Accounts State
   const [currentUser, setCurrentUser] = useState<UserAccount>(() => getActiveUser());
 
-  // Set & Cards State: Default to URL set param, last selected set, or latest set (POPULAR_LIMITED_SETS[0])
+  // Set & Cards State: Only set if specified in URL or previously saved by user (otherwise null)
   const [allSets, setAllSets] = useState<SetInfo[]>(POPULAR_LIMITED_SETS);
-  const [currentSet, setCurrentSet] = useState<SetInfo>(() => {
+  const [currentSet, setCurrentSet] = useState<SetInfo | null>(() => {
     const params = parseAppUrlParams();
     if (params.set) {
       const match = POPULAR_LIMITED_SETS.find((p) => p.code.toUpperCase() === params.set?.toUpperCase());
@@ -64,11 +67,11 @@ export const App: React.FC = () => {
         set_type: 'expansion',
       };
     }
-    return POPULAR_LIMITED_SETS[0];
+    return null;
   });
 
   const [cards, setCards] = useState<Card[]>([]);
-  const [isLoadingCards, setIsLoadingCards] = useState<boolean>(true);
+  const [isLoadingCards, setIsLoadingCards] = useState<boolean>(false);
   const [downloadProgress, setDownloadProgress] = useState<{ loaded: number; total: number } | null>(null);
 
   // 17Lands Data State
@@ -80,20 +83,24 @@ export const App: React.FC = () => {
 
   // Blind Grading Preference (Shared between Grading Hub and Cards Explorer)
   const [isBlindGrading, setIsBlindGrading] = useState<boolean>(() => {
+    if (!currentSet) return true;
     return getBlindGradingForSet(currentSet.code, currentUser.id, currentSet.card_count);
   });
 
   useEffect(() => {
-    setIsBlindGrading(getBlindGradingForSet(currentSet.code, currentUser.id, cards.length || currentSet.card_count));
-  }, [currentSet.code, currentUser.id, cards.length, currentSet.card_count]);
+    if (currentSet) {
+      setIsBlindGrading(getBlindGradingForSet(currentSet.code, currentUser.id, cards.length || currentSet.card_count));
+    }
+  }, [currentSet?.code, currentUser.id, cards.length, currentSet?.card_count]);
 
   const handleToggleBlindGrading = useCallback(() => {
+    if (!currentSet) return;
     setIsBlindGrading((prev) => {
       const next = !prev;
       setBlindGradingForSet(currentSet.code, next, currentUser.id);
       return next;
     });
-  }, [currentSet.code, currentUser.id]);
+  }, [currentSet, currentUser.id]);
 
   // Quiz Workflow State
   const [quizState, setQuizState] = useState<'setup' | 'active' | 'summary'>('setup');
@@ -105,31 +112,41 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
+    let isProcessingSession = false;
     const handleUserSession = async (user: any) => {
-      const cloudUser = supabaseUserToUserAccount(user);
-      setActiveUser(cloudUser);
-      setCurrentUser(cloudUser);
+      if (!user || isProcessingSession) return;
+      isProcessingSession = true;
 
-      // 1. Pull existing remote cloud data
-      const { stats, evaluations } = await pullRemoteUserData(cloudUser.id);
+      try {
+        const cloudUser = supabaseUserToUserAccount(user);
+        setActiveUser(cloudUser);
+        setCurrentUser(cloudUser);
 
-      // 2. Check if local guest has progress and cloud is fresh
-      const localStats = loadUserStats('user_default');
-      const localEvals = loadUserEvaluations('user_default');
-      const hasLocalProgress = localStats.totalQuizzes > 0 || Object.keys(localEvals).length > 0;
+        // 1. Pull existing remote cloud data
+        const { stats, evaluations } = await pullRemoteUserData(cloudUser.id);
 
-      if ((!stats || stats.totalQuizzes === 0) && hasLocalProgress) {
-        await migrateLocalDataToCloud(cloudUser.id, 'user_default');
-        const refreshed = await pullRemoteUserData(cloudUser.id);
-        if (refreshed.stats) setUserStats(refreshed.stats);
-        if (refreshed.evaluations && Object.keys(refreshed.evaluations).length > 0) {
-          setUserEvaluations(refreshed.evaluations);
+        // 2. Check if local guest has progress and cloud is fresh
+        const localStats = loadUserStats('user_default');
+        const localEvals = loadUserEvaluations('user_default');
+        const hasLocalProgress = localStats.totalQuizzes > 0 || Object.keys(localEvals).length > 0;
+
+        if ((!stats || stats.totalQuizzes === 0) && hasLocalProgress) {
+          await migrateLocalDataToCloud(cloudUser.id, 'user_default');
+          const refreshed = await pullRemoteUserData(cloudUser.id);
+          if (refreshed.stats) setUserStats(refreshed.stats);
+          if (refreshed.evaluations && Object.keys(refreshed.evaluations).length > 0) {
+            setUserEvaluations(refreshed.evaluations);
+          }
+        } else {
+          if (stats) setUserStats(stats);
+          if (evaluations && Object.keys(evaluations).length > 0) {
+            setUserEvaluations(evaluations);
+          }
         }
-      } else {
-        if (stats) setUserStats(stats);
-        if (evaluations && Object.keys(evaluations).length > 0) {
-          setUserEvaluations(evaluations);
-        }
+      } catch (err) {
+        console.warn('Error handling user session:', err);
+      } finally {
+        isProcessingSession = false;
       }
     };
 
@@ -197,7 +214,15 @@ export const App: React.FC = () => {
   };
 
   // Fetch cards and 17lands data whenever currentSet changes
-  const loadSetData = useCallback(async (set: SetInfo) => {
+  const loadSetData = useCallback(async (set: SetInfo | null) => {
+    if (!set) {
+      setCards([]);
+      setSeventeenLandsData(null);
+      setIsLoadingCards(false);
+      setDownloadProgress(null);
+      return;
+    }
+
     setIsLoadingCards(true);
     setDownloadProgress(null);
     setSeventeenLandsData(null); // Reset immediately so previous set's data never leaks
@@ -237,9 +262,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     updateAppUrlParams({
       tab: activeTab,
-      set: currentSet.code,
+      set: currentSet ? currentSet.code : undefined,
     });
-  }, [activeTab, currentSet.code]);
+  }, [activeTab, currentSet]);
 
   // Handle browser back/forward history navigation
   useEffect(() => {
@@ -248,7 +273,7 @@ export const App: React.FC = () => {
       if (params.tab && params.tab !== activeTab) {
         setActiveTab(params.tab);
       }
-      if (params.set && params.set.toUpperCase() !== currentSet.code.toUpperCase()) {
+      if (params.set && params.set.toUpperCase() !== currentSet?.code.toUpperCase()) {
         const found = allSets.find(s => s.code.toUpperCase() === params.set?.toUpperCase());
         if (found) setCurrentSet(found);
       }
@@ -256,7 +281,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeTab, currentSet.code, allSets]);
+  }, [activeTab, currentSet?.code, allSets]);
 
   // Handle Set Change
   const handleSelectSet = (set: SetInfo) => {
@@ -268,7 +293,7 @@ export const App: React.FC = () => {
 
   // Quiz Handlers
   const handleStartQuiz = (settings: QuizSettings) => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || !currentSet) return;
 
     const missedKeys = new Set(Object.keys(userStats.missedCards || {}));
     const generatedQuestions = generateQuiz(cards, settings, seventeenLandsData, missedKeys, currentSet.released_at);
@@ -299,7 +324,7 @@ export const App: React.FC = () => {
   };
 
   const handlePracticeMissedCards = () => {
-    if (cards.length === 0) return;
+    if (cards.length === 0 || !currentSet) return;
     const is17Eligible = is17LandsEligibleForSet(currentSet.released_at, seventeenLandsData, currentSet.code, cards);
     const availableCats: QuestionCategory[] = [
       'p1p1_pick',
@@ -342,9 +367,11 @@ export const App: React.FC = () => {
     setUserEvaluations(updated);
   };
 
-  const missedCountForCurrentSet = Object.values(userStats.missedCards || {}).filter(
-    (m) => m.setCode.toUpperCase() === currentSet.code.toUpperCase()
-  ).length;
+  const missedCountForCurrentSet = currentSet
+    ? Object.values(userStats.missedCards || {}).filter(
+        (m) => m.setCode.toUpperCase() === currentSet.code.toUpperCase()
+      ).length
+    : 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-[#030614] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
@@ -362,194 +389,205 @@ export const App: React.FC = () => {
         userStats={userStats}
         currentUser={currentUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenWelcomeTour={() => setIsWelcomeTourOpen(true)}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
-        {activeTab === 'quiz' && (
+        {!currentSet ? (
+          <EmptySetPlaceholder
+            onOpenSetSelector={() => setIsSetSelectorOpen(true)}
+            onSelectSet={handleSelectSet}
+            popularSets={allSets.slice(0, 6)}
+          />
+        ) : (
           <>
-            {quizState === 'active' && activeQuestions.length > 0 ? (
-              <QuizActive
-                questions={activeQuestions}
-                cards={cards}
-                setCode={currentSet.code}
-                setName={currentSet.name}
-                timerSeconds={activeSettings?.timerSeconds || 0}
-                onFinishQuiz={handleFinishQuiz}
-                onExitQuiz={() => setQuizState('setup')}
-              />
-            ) : (
-              <div className="space-y-4">
-                {/* Quiz Subtab Navigation Header */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap pb-3 border-b border-slate-200 dark:border-slate-800/80">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-amber-500 dark:from-violet-500 dark:via-indigo-500 dark:to-cyan-400 flex items-center justify-center text-white shadow-md shadow-violet-500/20 shrink-0 p-1.5 border border-white/20">
-                        <PlaneswalkerSymbol className="w-full h-full text-white drop-shadow-xs" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
-                            Card Quiz & Tactical Mastery
-                          </h1>
-                          <SetBadge setCode={currentSet.code} iconSvgUri={currentSet.icon_svg_uri} size="xs" className="px-2 py-0.5 text-[11px]" />
+            {activeTab === 'quiz' && (
+              <>
+                {quizState === 'active' && activeQuestions.length > 0 ? (
+                  <QuizActive
+                    questions={activeQuestions}
+                    cards={cards}
+                    setCode={currentSet.code}
+                    setName={currentSet.name}
+                    timerSeconds={activeSettings?.timerSeconds || 0}
+                    onFinishQuiz={handleFinishQuiz}
+                    onExitQuiz={() => setQuizState('setup')}
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {/* Quiz Subtab Navigation Header */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+                      <div className="flex items-center justify-between gap-3 flex-wrap pb-3 border-b border-slate-200 dark:border-slate-800/80">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-amber-500 dark:from-violet-500 dark:via-indigo-500 dark:to-cyan-400 flex items-center justify-center text-white shadow-md shadow-violet-500/20 shrink-0 p-1.5 border border-white/20">
+                            <PlaneswalkerSymbol className="w-full h-full text-white drop-shadow-xs" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading">
+                                Card Quiz & Tactical Mastery
+                              </h1>
+                              <SetBadge setCode={currentSet.code} iconSvgUri={currentSet.icon_svg_uri} size="xs" className="px-2 py-0.5 text-[11px]" />
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              Drill {currentSet.name} heuristics, analyze category proficiency, and master missed cards.
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Drill {currentSet.name} heuristics, analyze category proficiency, and master missed cards.
-                        </p>
+
+                        {/* Right side: Streak, Level, and Subtabs */}
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {/* Streak & Level badges (moved from Navbar to Card Quiz) */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/50 text-amber-700 dark:text-amber-400 text-xs font-semibold whitespace-nowrap shadow-xs"
+                              title={`Current Streak: ${userStats.currentStreak}`}
+                            >
+                              <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                              <span>{userStats.currentStreak} Streak</span>
+                            </div>
+
+                            <div
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#060a1d] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium whitespace-nowrap shadow-xs"
+                              title={`Level ${userStats.level} (${userStats.xp} Total XP) • Gain XP by taking quizzes and grading cards`}
+                            >
+                              <span className="font-mono font-bold text-violet-600 dark:text-violet-400">Lv.{userStats.level}</span>
+                              <span className="text-slate-500 dark:text-slate-400 text-[11px]">({userStats.xp} XP)</span>
+                            </div>
+                          </div>
+
+                          {/* Subtabs Pill Switcher (Text only, NO icons on sub modes) */}
+                          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#060a1d] border border-slate-200/90 dark:border-slate-800/80 shadow-xs">
+                            <button
+                              onClick={() => {
+                                setQuizSubTab('take');
+                                updateAppUrlParams({ tab: 'quiz', subtab: undefined });
+                              }}
+                              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                                quizSubTab === 'take'
+                                  ? 'bg-violet-600 text-white shadow-xs font-bold'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                              }`}
+                            >
+                              Take Quiz
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setQuizSubTab('stats');
+                                updateAppUrlParams({ tab: 'quiz', subtab: 'stats' });
+                              }}
+                              className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                                quizSubTab === 'stats'
+                                  ? 'bg-violet-600 text-white shadow-xs font-bold'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                              }`}
+                            >
+                              Mastery Stats
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right side: Streak, Level, and Subtabs */}
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      {/* Streak & Level badges (moved from Navbar to Card Quiz) */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/50 text-amber-700 dark:text-amber-400 text-xs font-semibold whitespace-nowrap shadow-xs"
-                          title={`Current Streak: ${userStats.currentStreak}`}
-                        >
-                          <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                          <span>{userStats.currentStreak} Streak</span>
-                        </div>
+                    {quizSubTab === 'take' && (
+                      <>
+                        {quizState === 'setup' && (
+                          <QuizSetup
+                            currentSet={currentSet}
+                            onStartQuiz={handleStartQuiz}
+                            onOpenSetSelector={() => setIsSetSelectorOpen(true)}
+                            availableCardsCount={cards.length}
+                            missedCardsCount={missedCountForCurrentSet}
+                            seventeenLandsData={seventeenLandsData}
+                          />
+                        )}
 
-                        <div
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#060a1d] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium whitespace-nowrap shadow-xs"
-                          title={`Level ${userStats.level} (${userStats.xp} Total XP) • Gain XP by taking quizzes and grading cards`}
-                        >
-                          <span className="font-mono font-bold text-violet-600 dark:text-violet-400">Lv.{userStats.level}</span>
-                          <span className="text-slate-500 dark:text-slate-400 text-[11px]">({userStats.xp} XP)</span>
-                        </div>
-                      </div>
-
-                      {/* Subtabs Pill Switcher (Text only, NO icons on sub modes) */}
-                      <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#060a1d] border border-slate-200/90 dark:border-slate-800/80 shadow-xs">
-                        <button
-                          onClick={() => {
-                            setQuizSubTab('take');
-                            updateAppUrlParams({ tab: 'quiz', subtab: undefined });
-                          }}
-                          className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                            quizSubTab === 'take'
-                              ? 'bg-violet-600 text-white shadow-xs font-bold'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                          }`}
-                        >
-                          Take Quiz
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setQuizSubTab('stats');
-                            updateAppUrlParams({ tab: 'quiz', subtab: 'stats' });
-                          }}
-                          className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                            quizSubTab === 'stats'
-                              ? 'bg-violet-600 text-white shadow-xs font-bold'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                          }`}
-                        >
-                          Mastery Stats
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {quizSubTab === 'take' && (
-                  <>
-                    {quizState === 'setup' && (
-                      <QuizSetup
-                        currentSet={currentSet}
-                        onStartQuiz={handleStartQuiz}
-                        onOpenSetSelector={() => setIsSetSelectorOpen(true)}
-                        availableCardsCount={cards.length}
-                        missedCardsCount={missedCountForCurrentSet}
-                        seventeenLandsData={seventeenLandsData}
-                      />
+                        {quizState === 'summary' && lastResult && (
+                          <QuizSummary
+                            result={lastResult}
+                            onRetakeQuiz={handleRetakeQuiz}
+                            onPracticeMissed={handlePracticeMissedCards}
+                            onGoToEvaluation={() => setActiveTab('evaluation')}
+                            onGoToStats={() => {
+                              setQuizSubTab('stats');
+                              updateAppUrlParams({ tab: 'quiz', subtab: 'stats' });
+                            }}
+                          />
+                        )}
+                      </>
                     )}
 
-                    {quizState === 'summary' && lastResult && (
-                      <QuizSummary
-                        result={lastResult}
-                        onRetakeQuiz={handleRetakeQuiz}
-                        onPracticeMissed={handlePracticeMissedCards}
-                        onGoToEvaluation={() => setActiveTab('evaluation')}
-                        onGoToStats={() => {
-                          setQuizSubTab('stats');
-                          updateAppUrlParams({ tab: 'quiz', subtab: 'stats' });
+                    {quizSubTab === 'stats' && (
+                      <StatsDashboard
+                        userStats={userStats}
+                        onDrillMissedCards={handlePracticeMissedCards}
+                        onRefreshStats={() => {
+                          setUserStats(loadUserStats(currentUser.id));
+                          setUserEvaluations(loadUserEvaluations(currentUser.id));
+                        }}
+                        onTakeQuiz={() => {
+                          setQuizSubTab('take');
+                          setQuizState('setup');
+                          updateAppUrlParams({ tab: 'quiz', subtab: undefined });
+                        }}
+                        onSelectCardName={(cardName) => {
+                          const matched = cards.find(
+                            (c) => c.name.toLowerCase() === cardName.toLowerCase()
+                          );
+                          if (matched) {
+                            setActiveTab('evaluation');
+                            updateAppUrlParams({
+                              tab: 'evaluation',
+                              card: matched.collector_number || matched.name,
+                            });
+                          }
                         }}
                       />
                     )}
-                  </>
+                  </div>
                 )}
+              </>
+            )}
 
-                {quizSubTab === 'stats' && (
-                  <StatsDashboard
-                    userStats={userStats}
-                    onDrillMissedCards={handlePracticeMissedCards}
-                    onRefreshStats={() => {
-                      setUserStats(loadUserStats(currentUser.id));
-                      setUserEvaluations(loadUserEvaluations(currentUser.id));
-                    }}
-                    onTakeQuiz={() => {
-                      setQuizSubTab('take');
-                      setQuizState('setup');
-                      updateAppUrlParams({ tab: 'quiz', subtab: undefined });
-                    }}
-                    onSelectCardName={(cardName) => {
-                      const matched = cards.find(
-                        (c) => c.name.toLowerCase() === cardName.toLowerCase()
-                      );
-                      if (matched) {
-                        setActiveTab('evaluation');
-                        updateAppUrlParams({
-                          tab: 'evaluation',
-                          card: matched.collector_number || matched.name,
-                        });
-                      }
-                    }}
-                  />
-                )}
-              </div>
+            {activeTab === 'evaluation' && (
+              <EvaluationHub
+                cards={cards}
+                currentSetCode={currentSet.code}
+                currentSetName={currentSet.name}
+                userEvaluations={userEvaluations}
+                seventeenLandsData={seventeenLandsData}
+                isBlindGrading={isBlindGrading}
+                onToggleBlindGrading={handleToggleBlindGrading}
+                onSaveEvaluation={handleSaveEvaluation}
+                onClearEvaluationsForSet={handleClearEvaluationsForSet}
+                onOpenSetSelector={() => setIsSetSelectorOpen(true)}
+              />
+            )}
+
+            {activeTab === 'explorer' && (
+              <SetExplorer
+                cards={cards}
+                currentSetCode={currentSet.code}
+                currentSetName={currentSet.name}
+                userEvaluations={userEvaluations}
+                seventeenLandsData={seventeenLandsData}
+                isBlindGrading={isBlindGrading}
+                onToggleBlindGrading={handleToggleBlindGrading}
+                onSaveEvaluation={handleSaveEvaluation}
+                onClearEvaluationsForSet={handleClearEvaluationsForSet}
+                onGradeCard={(card) => {
+                  setActiveTab('evaluation');
+                  updateAppUrlParams({
+                    tab: 'evaluation',
+                    subtab: 'grade',
+                    card: card.collector_number || card.name,
+                  });
+                }}
+              />
             )}
           </>
-        )}
-
-        {activeTab === 'evaluation' && (
-          <EvaluationHub
-            cards={cards}
-            currentSetCode={currentSet.code}
-            currentSetName={currentSet.name}
-            userEvaluations={userEvaluations}
-            seventeenLandsData={seventeenLandsData}
-            isBlindGrading={isBlindGrading}
-            onToggleBlindGrading={handleToggleBlindGrading}
-            onSaveEvaluation={handleSaveEvaluation}
-            onClearEvaluationsForSet={handleClearEvaluationsForSet}
-            onOpenSetSelector={() => setIsSetSelectorOpen(true)}
-          />
-        )}
-
-        {activeTab === 'explorer' && (
-          <SetExplorer
-            cards={cards}
-            currentSetCode={currentSet.code}
-            currentSetName={currentSet.name}
-            userEvaluations={userEvaluations}
-            seventeenLandsData={seventeenLandsData}
-            isBlindGrading={isBlindGrading}
-            onToggleBlindGrading={handleToggleBlindGrading}
-            onSaveEvaluation={handleSaveEvaluation}
-            onClearEvaluationsForSet={handleClearEvaluationsForSet}
-            onGradeCard={(card) => {
-              setActiveTab('evaluation');
-              updateAppUrlParams({
-                tab: 'evaluation',
-                subtab: 'grade',
-                card: card.collector_number || card.name,
-              });
-            }}
-          />
         )}
       </main>
 
@@ -558,7 +596,7 @@ export const App: React.FC = () => {
         isOpen={isSetSelectorOpen}
         onClose={() => setIsSetSelectorOpen(false)}
         allSets={allSets}
-        currentSetCode={currentSet.code}
+        currentSetCode={currentSet?.code || ''}
         onSelectSet={handleSelectSet}
         isLoadingCards={isLoadingCards}
         downloadProgress={downloadProgress}
@@ -574,6 +612,19 @@ export const App: React.FC = () => {
           setUserStats(loadUserStats(currentUser.id));
           setUserEvaluations(loadUserEvaluations(currentUser.id));
         }}
+      />
+
+      {/* Welcome Guide & Tour Modal */}
+      <WelcomeTourModal
+        isOpen={isWelcomeTourOpen}
+        onClose={() => setIsWelcomeTourOpen(false)}
+        onNavigateTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'quiz') {
+            setQuizState('setup');
+          }
+        }}
+        onOpenSetSelector={() => setIsSetSelectorOpen(true)}
       />
     </div>
   );

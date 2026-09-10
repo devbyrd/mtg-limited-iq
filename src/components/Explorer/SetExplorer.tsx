@@ -5,7 +5,7 @@ import { Search, Filter, Sparkles, ExternalLink, Zap, Swords, Shield, X, ShieldC
 import { ClearSetRatingsModal } from '../UI/ClearSetRatingsModal';
 import { ManaCostRenderer, ManaSymbol } from '../UI/ManaSymbol';
 import { parseAppUrlParams, updateAppUrlParams, findCardByUrlIdentifier } from '../../services/urlParams';
-import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, get17LandsArchetypeUrl, winRateToGradeTier } from '../../services/seventeenLands';
+import { GRADE_TIERS, GRADE_SCORES, get17LandsSetUrl, get17LandsCardUrl, get17LandsArchetypeUrl, winRateToGradeTier, get17LandsCardRating } from '../../services/seventeenLands';
 import { GradeComparisonCard } from '../UI/GradeComparisonCard';
 import { PlaneswalkerSymbol } from '../UI/PlaneswalkerSymbol';
 import { SetBadge, SetSymbol } from '../UI/SetSymbol';
@@ -45,7 +45,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
   const [activeExplorerTab, setActiveExplorerTab] = useState<'cards' | 'archetypes'>('cards');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedColors, setSelectedColors] = useState<string[]>(['ALL']);
-  const [selectedRarity, setSelectedRarity] = useState<string>('ALL');
+  const [selectedRarities, setSelectedRarities] = useState<string[]>(['ALL']);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
   const [filterRatedStatus, setFilterRatedStatus] = useState<'ALL' | 'RATED' | 'UNRATED'>('ALL');
   const [sortBy, setSortBy] = useState<'number' | 'name' | 'cmc' | 'winrate'>('number');
@@ -140,8 +140,11 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
         return false;
       }
 
-      if (selectedRarity !== 'ALL' && c.rarity !== selectedRarity) {
-        return false;
+      if (!selectedRarities.includes('ALL') && selectedRarities.length > 0) {
+        const cardRarity = (c.rarity || '').toLowerCase();
+        if (!selectedRarities.map((r) => r.toLowerCase()).includes(cardRarity)) {
+          return false;
+        }
       }
 
       if (!cardMatchesRoleFilter(c, selectedRoles)) {
@@ -155,15 +158,15 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       if (sortBy === 'cmc') return a.cmc - b.cmc;
       if (sortBy === 'winrate') {
-        const wrA = seventeenLandsData?.cards[a.name]?.win_rate || 0.5;
-        const wrB = seventeenLandsData?.cards[b.name]?.win_rate || 0.5;
+        const wrA = get17LandsCardRating(a, seventeenLandsData)?.win_rate || 0.5;
+        const wrB = get17LandsCardRating(b, seventeenLandsData)?.win_rate || 0.5;
         return wrB - wrA;
       }
       return parseInt(a.collector_number || '0') - parseInt(b.collector_number || '0');
     });
 
     return result;
-  }, [cards, searchQuery, selectedColors, selectedRarity, selectedRoles, filterRatedStatus, sortBy, seventeenLandsData, userEvaluations]);
+  }, [cards, searchQuery, selectedColors, selectedRarities, selectedRoles, filterRatedStatus, sortBy, seventeenLandsData, userEvaluations]);
 
   const currentModalIndex = useMemo(() => {
     if (!selectedCardForModal) return -1;
@@ -204,7 +207,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
     : undefined;
 
   const activeCard17LandsData = selectedCardForModal
-    ? seventeenLandsData?.cards?.[selectedCardForModal.name]
+    ? (get17LandsCardRating(selectedCardForModal, seventeenLandsData) || undefined)
     : undefined;
 
   const getTierBadgeStyle = (tier: GradeTier) => {
@@ -331,21 +334,37 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             );
           })()}
 
-          {/* Rarity Pills */}
+          {/* Rarity Pills (Multi-Select) */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#050818] p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
-            {['ALL', 'common', 'uncommon', 'rare', 'mythic'].map((rarity) => (
-              <button
-                key={rarity}
-                onClick={() => setSelectedRarity(rarity)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${
-                  selectedRarity === rarity
-                    ? 'bg-violet-600 text-white shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                {rarity === 'ALL' ? 'All' : rarity}
-              </button>
-            ))}
+            {['ALL', 'common', 'uncommon', 'rare', 'mythic'].map((rarity) => {
+              const isSelected = (rarity === 'ALL' && (selectedRarities.includes('ALL') || selectedRarities.length === 0)) ||
+                (rarity !== 'ALL' && selectedRarities.includes(rarity));
+              return (
+                <button
+                  key={rarity}
+                  onClick={() => {
+                    if (rarity === 'ALL') {
+                      setSelectedRarities(['ALL']);
+                      return;
+                    }
+                    const current = selectedRarities.filter((r) => r !== 'ALL');
+                    if (current.includes(rarity)) {
+                      const next = current.filter((r) => r !== rarity);
+                      setSelectedRarities(next.length === 0 ? ['ALL'] : next);
+                    } else {
+                      setSelectedRarities([...current, rarity]);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-violet-600 text-white shadow-xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  {rarity === 'ALL' ? 'All' : rarity}
+                </button>
+              );
+            })}
           </div>
 
           {/* Status Filter Pills */}
@@ -455,19 +474,19 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
             <span className="font-bold text-slate-800 dark:text-slate-200">
               Displaying <strong className="text-violet-700 dark:text-cyan-300 font-black">{filteredAndSortedCards.length}</strong> of <strong>{cards.length}</strong> cards
             </span>
-            {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+            {(!selectedColors.includes('ALL') || !selectedRarities.includes('ALL') || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
               <span className="text-violet-600 dark:text-cyan-400 font-semibold">
                 (filtered)
               </span>
             )}
           </div>
 
-          {(!selectedColors.includes('ALL') || selectedRarity !== 'ALL' || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
+          {(!selectedColors.includes('ALL') || !selectedRarities.includes('ALL') || !selectedRoles.includes('ALL') || filterRatedStatus !== 'ALL' || searchQuery.trim() !== '') && (
             <button
               type="button"
               onClick={() => {
                 setSelectedColors(['ALL']);
-                setSelectedRarity('ALL');
+                setSelectedRarities(['ALL']);
                 setSelectedRoles(['ALL']);
                 setFilterRatedStatus('ALL');
                 setSearchQuery('');
@@ -489,7 +508,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {filteredAndSortedCards.map((card) => {
-            const landData = seventeenLandsData?.cards[card.name];
+            const landData = get17LandsCardRating(card, seventeenLandsData);
             const evalData = userEvaluations[`${card.set.toLowerCase()}_${card.name.toLowerCase()}`];
 
             return (
@@ -713,7 +732,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                           {signposts.map((signpostCard) => {
                             const evalKey = `${signpostCard.set?.toLowerCase() || ''}_${signpostCard.name?.toLowerCase() || ''}`;
                             const signpostEval = userEvaluations[evalKey];
-                            const signpostLand = seventeenLandsData?.cards ? seventeenLandsData.cards[signpostCard.name] : null;
+                            const signpostLand = get17LandsCardRating(signpostCard, seventeenLandsData);
                             const signpostActualTier: GradeTier | null =
                               signpostLand && typeof signpostLand.win_rate === 'number' && signpostLand.win_rate > 0
                                 ? ((signpostLand.tier_grade as GradeTier) || winRateToGradeTier(signpostLand.win_rate))
@@ -804,7 +823,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       onClick={() => {
                         setActiveExplorerTab('cards');
                         setSelectedColors(archetype.code.toUpperCase().split(''));
-                        setSelectedRarity('ALL');
+                        setSelectedRarities(['ALL']);
                         setSelectedRoles(['ALL']);
                         setFilterRatedStatus('ALL');
                         setSearchQuery('');
@@ -820,7 +839,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                       onClick={() => {
                         setActiveExplorerTab('cards');
                         setSelectedColors(['GOLD_' + archetype.code.toUpperCase()]);
-                        setSelectedRarity('ALL');
+                        setSelectedRarities(['ALL']);
                         setSelectedRoles(['ALL']);
                         setFilterRatedStatus('ALL');
                         setSearchQuery('');
@@ -918,7 +937,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   onClick={() => {
                     setSearchQuery('');
                     setSelectedColors(['ALL']);
-                    setSelectedRarity('ALL');
+                    setSelectedRarities(['ALL']);
                     setSelectedRoles(['ALL']);
                     setFilterRatedStatus('ALL');
                   }}
@@ -1039,7 +1058,7 @@ export const SetExplorer: React.FC<SetExplorerProps> = ({
                   <GradeComparisonCard
                     card={selectedCardForModal}
                     userEval={activeCardEval}
-                    landData={seventeenLandsData?.cards?.[selectedCardForModal.name]}
+                    landData={activeCard17LandsData}
                     isBlindGrading={effectiveIsBlind}
                   />
 

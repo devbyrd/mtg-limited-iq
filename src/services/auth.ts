@@ -1,6 +1,13 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { UserAccount } from '../types/mtg';
 import { User, Session } from '@supabase/supabase-js';
+import {
+  getAllUsers,
+  createLocalUser,
+  setActiveUser,
+  updateUserAccount,
+  loginWithOAuthProvider,
+} from './storage';
 
 export type OAuthProvider = 'google' | 'discord' | 'apple' | 'github';
 
@@ -55,13 +62,17 @@ export function supabaseUserToUserAccount(user: User): UserAccount {
   };
 }
 
-export async function signInWithOAuth(provider: OAuthProvider): Promise<{ error: Error | null }> {
+export async function signInWithOAuth(provider: OAuthProvider): Promise<{ user?: UserAccount; error: Error | null }> {
   if (!isSupabaseConfigured()) {
-    return {
-      error: new Error(
-        'Supabase is not configured yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
-      ),
-    };
+    // Offline / Local development fallback: simulated 1-click login
+    const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+    const mockUser = loginWithOAuthProvider(provider as any, {
+      id: `local_${provider}_${Date.now()}`,
+      name: `${providerName} Drafter`,
+      email: `drafter@${provider}.local`,
+    });
+    setActiveUser(mockUser);
+    return { user: mockUser, error: null };
   }
 
   try {
@@ -77,13 +88,21 @@ export async function signInWithOAuth(provider: OAuthProvider): Promise<{ error:
   }
 }
 
-export async function signInWithMagicLink(email: string): Promise<{ error: Error | null }> {
+export async function signInWithMagicLink(email: string): Promise<{ user?: UserAccount; error: Error | null }> {
   if (!isSupabaseConfigured()) {
-    return {
-      error: new Error(
-        'Supabase is not configured yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
-      ),
-    };
+    // Local fallback: log in immediately with local user
+    const name = email.includes('@') ? email.split('@')[0] : email;
+    const users = getAllUsers();
+    const existing = users.find(
+      (u) => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.name.toLowerCase() === email.toLowerCase()
+    );
+    const targetUser = existing || createLocalUser(name);
+    if (!targetUser.email && email.includes('@')) {
+      targetUser.email = email;
+      updateUserAccount(targetUser);
+    }
+    setActiveUser(targetUser);
+    return { user: targetUser, error: null };
   }
 
   try {
@@ -101,12 +120,24 @@ export async function signInWithMagicLink(email: string): Promise<{ error: Error
 
 export async function signInWithPassword(email: string, password: string): Promise<{ user: UserAccount | null; error: Error | null }> {
   if (!isSupabaseConfigured()) {
-    return {
-      user: null,
-      error: new Error(
-        'Supabase is not configured yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
-      ),
-    };
+    // Local fallback: authenticate or switch to local profile
+    const users = getAllUsers();
+    const clean = email.trim().toLowerCase();
+    const existing = users.find(
+      (u) => (u.email && u.email.toLowerCase() === clean) || u.name.toLowerCase() === clean
+    );
+    if (existing) {
+      setActiveUser(existing);
+      return { user: existing, error: null };
+    }
+    const name = email.includes('@') ? email.split('@')[0] : email;
+    const newUser = createLocalUser(name);
+    if (email.includes('@')) {
+      newUser.email = email;
+      updateUserAccount(newUser);
+    }
+    setActiveUser(newUser);
+    return { user: newUser, error: null };
   }
 
   try {
@@ -125,12 +156,14 @@ export async function signInWithPassword(email: string, password: string): Promi
 
 export async function signUpWithPassword(email: string, password: string, displayName?: string): Promise<{ user: UserAccount | null; error: Error | null }> {
   if (!isSupabaseConfigured()) {
-    return {
-      user: null,
-      error: new Error(
-        'Supabase is not configured yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
-      ),
-    };
+    const name = displayName?.trim() || (email.includes('@') ? email.split('@')[0] : email);
+    const newUser = createLocalUser(name);
+    if (email.includes('@')) {
+      newUser.email = email;
+      updateUserAccount(newUser);
+    }
+    setActiveUser(newUser);
+    return { user: newUser, error: null };
   }
 
   try {

@@ -1,5 +1,6 @@
 import { get, set } from 'idb-keyval';
 import { Card, GradeTier, SeventeenLandsCardRating, SeventeenLandsSetData, UserCardEvaluation, CardEvaluationComparison, SetCalibrationSummary } from '../types/mtg';
+import { HOB_17LANDS_DATA } from './hob17LandsData';
 
 export const GRADE_TIERS: GradeTier[] = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'];
 
@@ -116,6 +117,37 @@ export function isSetUnderTwoWeeksOld(releasedAt?: string): boolean {
 }
 
 /**
+ * Safely resolves the 17Lands card rating for a card, supporting exact names,
+ * split/adventure card front-face names (e.g. "Bofur, Reliable Guardian // Concerted Care" -> "Bofur, Reliable Guardian"),
+ * and prefix matching.
+ */
+export function get17LandsCardRating(
+  card: { name: string } | null | undefined,
+  seventeenLandsData?: SeventeenLandsSetData | null
+): SeventeenLandsCardRating | null {
+  if (!card || !seventeenLandsData?.cards) return null;
+  // 1. Exact match
+  if (seventeenLandsData.cards[card.name]) {
+    return seventeenLandsData.cards[card.name];
+  }
+  // 2. Split card / adventure front-face lookup
+  if (card.name.includes(' // ')) {
+    const frontFace = card.name.split(' // ')[0].trim();
+    if (seventeenLandsData.cards[frontFace]) {
+      return seventeenLandsData.cards[frontFace];
+    }
+  }
+  // 3. Reverse lookup if 17Lands dataset key contains full split name
+  const prefixMatch = Object.entries(seventeenLandsData.cards).find(([k]) =>
+    k.startsWith(card.name + ' // ')
+  );
+  if (prefixMatch) {
+    return prefixMatch[1];
+  }
+  return null;
+}
+
+/**
  * Validates whether a given 17Lands dataset is authentic for the targeted set,
  * verifying set code match, sample size, and matching card records.
  */
@@ -130,7 +162,7 @@ export function isAuthentic17LandsDataSet(
   }
   if (cards && cards.length > 0) {
     const matchingCount = cards.filter((c) => {
-      const match = seventeenLandsData.cards?.[c.name];
+      const match = get17LandsCardRating(c, seventeenLandsData);
       return match && (match.game_count || 0) > 0 && typeof match.win_rate === 'number';
     }).length;
     return matchingCount >= Math.min(5, cards.length);
@@ -161,6 +193,7 @@ export function is17LandsEligibleForSet(
 
 // Benchmark 17Lands dataset for popular sets
 const PRELOADED_17LANDS_DATA: Record<string, Record<string, Partial<SeventeenLandsCardRating>>> = {
+  'HOB': HOB_17LANDS_DATA,
   'SOS': {
     'Pterafractyl': { win_rate: 0.582, avg_seen: 3.4, iwd: 0.035, tier_grade: 'A-', seen_count: 3100, game_count: 8200 },
     'Professor Dellian Fel': { win_rate: 0.635, avg_seen: 1.3, iwd: 0.074, tier_grade: 'A+', seen_count: 1400, game_count: 4900 },
@@ -243,59 +276,19 @@ const PRELOADED_17LANDS_DATA: Record<string, Record<string, Partial<SeventeenLan
 
 export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLandsSetData | null> {
   const upperCode = setCode.toUpperCase();
-  const cacheKey = `17lands_data_${upperCode}_v7`;
+  const cacheKey = `17lands_data_${upperCode}_v9`;
 
   try {
     const cached = await get<SeventeenLandsSetData>(cacheKey);
-    if (cached && (cached.sampleSize || 0) > 500 && Object.keys(cached.cards || {}).length >= 5) {
+    // If cached dataset is comprehensive (at least 30 cards), return it
+    if (cached && (cached.sampleSize || 0) > 500 && Object.keys(cached.cards || {}).length >= 30) {
       return cached;
     }
   } catch (e) {
     console.warn('17lands cache read error:', e);
   }
 
-  // Check preloaded benchmark data first
-  if (PRELOADED_17LANDS_DATA[upperCode]) {
-    const cards: Record<string, SeventeenLandsCardRating> = {};
-    Object.entries(PRELOADED_17LANDS_DATA[upperCode]).forEach(([name, data]) => {
-      const wr = data.win_rate || 0.54;
-      const cardRating: SeventeenLandsCardRating = {
-        name,
-        color: data.color || 'C',
-        rarity: data.rarity || 'common',
-        seen_count: data.seen_count || 3000,
-        avg_seen: data.avg_seen || 4.5,
-        pick_rate: data.pick_rate || 0.15,
-        game_count: data.game_count || 6500,
-        win_rate: wr,
-        iwd: data.iwd || 0.015,
-        tier_grade: data.tier_grade || winRateToGradeTier(wr),
-        card_id: data.card_id ?? data.mtga_id,
-        mtga_id: data.mtga_id ?? (typeof data.card_id === 'number' ? data.card_id : undefined),
-      };
-      cards[name] = cardRating;
-      if (name.includes(' // ')) {
-        const faceName = name.split(' // ')[0].trim();
-        cards[faceName] = cardRating;
-      }
-    });
-
-    const dataset: SeventeenLandsSetData = {
-      setCode: upperCode,
-      setName: upperCode,
-      format: 'PremierDraft',
-      sampleSize: Object.keys(cards).length * 4000,
-      cards,
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      await set(cacheKey, dataset);
-    } catch (e) {}
-    return dataset;
-  }
-
-  // Multi-tier URL strategies (Vite proxy, direct 17Lands endpoint, all-time start_date, CORS fallback)
+  // 1. Prioritize live 17Lands network fetch (full set telemetry of 200–350+ cards)
   const candidateUrls = [
     `/api/17lands/api/card_data?expansion=${encodeURIComponent(upperCode)}&event_type=PremierDraft`,
     `/api/17lands/card_ratings/data?expansion=${encodeURIComponent(upperCode)}&format=PremierDraft&start_date=2019-01-01`,
@@ -307,8 +300,14 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
   ];
 
   for (const url of candidateUrls) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
     try {
-      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      clearTimeout(timeoutId);
       if (response.ok) {
         let rawData = await response.json();
         // /api/card_data returns { data: [...] }, while /card_ratings/data returns [...] directly
@@ -371,8 +370,50 @@ export async function fetch17LandsSetData(setCode: string): Promise<SeventeenLan
         }
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       // Continue to next URL candidate
     }
+  }
+
+  // 2. Offline / Fallback: Check preloaded benchmark data if network fetch failed or is unreachable
+  if (PRELOADED_17LANDS_DATA[upperCode]) {
+    const cards: Record<string, SeventeenLandsCardRating> = {};
+    Object.entries(PRELOADED_17LANDS_DATA[upperCode]).forEach(([name, data]) => {
+      const wr = data.win_rate || 0.54;
+      const cardRating: SeventeenLandsCardRating = {
+        name,
+        color: data.color || 'C',
+        rarity: data.rarity || 'common',
+        seen_count: data.seen_count || 3000,
+        avg_seen: data.avg_seen || 4.5,
+        pick_rate: data.pick_rate || 0.15,
+        game_count: data.game_count || 6500,
+        win_rate: wr,
+        iwd: data.iwd || 0.015,
+        tier_grade: data.tier_grade || winRateToGradeTier(wr),
+        card_id: data.card_id ?? data.mtga_id,
+        mtga_id: data.mtga_id ?? (typeof data.card_id === 'number' ? data.card_id : undefined),
+      };
+      cards[name] = cardRating;
+      if (name.includes(' // ')) {
+        const faceName = name.split(' // ')[0].trim();
+        cards[faceName] = cardRating;
+      }
+    });
+
+    const dataset: SeventeenLandsSetData = {
+      setCode: upperCode,
+      setName: upperCode,
+      format: 'PremierDraft',
+      sampleSize: Object.keys(cards).length * 4000,
+      cards,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await set(cacheKey, dataset);
+    } catch (e) {}
+    return dataset;
   }
 
   return null;

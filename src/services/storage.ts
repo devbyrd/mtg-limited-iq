@@ -481,6 +481,26 @@ export function saveLastSelectedSetCode(code: string, userId?: string): void {
   }
 }
 
+export function hasSeenWelcomeTour(): boolean {
+  try {
+    return localStorage.getItem('mtg_has_seen_welcome_tour_v1') === 'true';
+  } catch (e) {
+    return false;
+  }
+}
+
+export function setHasSeenWelcomeTour(hasSeen: boolean): void {
+  try {
+    if (hasSeen) {
+      localStorage.setItem('mtg_has_seen_welcome_tour_v1', 'true');
+    } else {
+      localStorage.removeItem('mtg_has_seen_welcome_tour_v1');
+    }
+  } catch (e) {
+    console.error('Failed to save welcome tour preference:', e);
+  }
+}
+
 // ==================== EXPORT & IMPORT ====================
 
 export function exportUserDataAsJSON(userId?: string): string {

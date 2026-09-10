@@ -6,6 +6,7 @@ import {
   isAuthentic17LandsDataSet,
   isSetUnderTwoWeeksOld,
   is17LandsEligibleForSet,
+  get17LandsCardRating,
 } from './seventeenLands';
 
 export { isAuthentic17LandsDataSet, isSetUnderTwoWeeksOld, is17LandsEligibleForSet };
@@ -242,10 +243,10 @@ export function calculateColorRankings(
         }
       }
 
-      if (has17Lands && seventeenLandsData?.cards?.[card.name]) {
-        const wr = seventeenLandsData.cards[card.name].win_rate;
-        if (typeof wr === 'number') {
-          landWrSum += wr;
+      if (has17Lands) {
+        const rating = get17LandsCardRating(card, seventeenLandsData);
+        if (typeof rating?.win_rate === 'number') {
+          landWrSum += rating.win_rate;
           landCardCount++;
         }
       }
@@ -357,10 +358,10 @@ export function calculateArchetypeRankings(
         signpostRated++;
       }
 
-      if (has17Lands && seventeenLandsData?.cards?.[card.name]) {
-        const wr = seventeenLandsData.cards[card.name].win_rate;
-        if (typeof wr === 'number') {
-          landSignpostWrSum += wr;
+      if (has17Lands) {
+        const rating = get17LandsCardRating(card, seventeenLandsData);
+        if (typeof rating?.win_rate === 'number') {
+          landSignpostWrSum += rating.win_rate;
           landSignpostCount++;
         }
       }

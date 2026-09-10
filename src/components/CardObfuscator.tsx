@@ -10,6 +10,7 @@ interface CardObfuscatorProps {
   showDetailsOnHover?: boolean;
   className?: string;
   allowManualPeek?: boolean;
+  showSublabel?: boolean;
 }
 
 const SIZE_CLASSES = {
@@ -25,6 +26,7 @@ export const CardObfuscator: React.FC<CardObfuscatorProps> = ({
   obfuscation = { target: 'none', style: 'blur', isRevealed: false },
   size = 'lg',
   className = '',
+  showSublabel = true,
 }) => {
   const [faceIndex, setFaceIndex] = useState<number>(0);
   const [imgLoaded, setImgLoaded] = useState<boolean>(false);
@@ -188,19 +190,21 @@ export const CardObfuscator: React.FC<CardObfuscatorProps> = ({
       </div>
 
       {/* Rarity & Collector Info Sub-label */}
-      <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-        <span className="uppercase font-bold text-cyan-300 bg-[#06091d] px-1.5 py-0.2 rounded border border-violet-500/30">
-          {card.set}
-        </span>
-        <span>•</span>
-        <span className="capitalize text-slate-300">{card.rarity}</span>
-        {obfuscation.isRevealed && card.mana_cost && (
-          <>
-            <span>•</span>
-            <ManaCostRenderer manaCost={card.mana_cost} size="xs" />
-          </>
-        )}
-      </div>
+      {showSublabel && (
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+          <span className="uppercase font-bold text-cyan-300 bg-[#06091d] px-1.5 py-0.2 rounded border border-violet-500/30">
+            {card.set}
+          </span>
+          <span>•</span>
+          <span className="capitalize text-slate-300">{card.rarity}</span>
+          {obfuscation.isRevealed && card.mana_cost && (
+            <>
+              <span>•</span>
+              <ManaCostRenderer manaCost={card.mana_cost} size="xs" />
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
